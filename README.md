@@ -8,7 +8,7 @@ cp .env-example .env
 Update .env
 
 ```
-pip install prompt_toolkit python-dotenv jira rich
+pip install prompt_toolkit python-dotenv jira rich openai
 ```
 
 ./jira_cli.py

@@ -1,19 +1,21 @@
 #!/usr/bin/env python3
 
-import requests    # For making HTTP requests to the Jira REST API
-import sys         # For handling command-line arguments
-import os          # For accessing environment variables
-import re          # For regular expressions
-from dotenv import load_dotenv  # For loading variables from a .env file
+import requests
+import sys
+import os
+import re
+from dotenv import load_dotenv
 from rich.console import Console
 from rich.panel import Panel
 from rich.text import Text
 from rich import box
-from urllib.parse import quote  # For URL encoding
+from urllib.parse import quote
 from prompt_toolkit import PromptSession
 from prompt_toolkit.completion import Completer, Completion
 import tempfile
 import subprocess
+import openai  # Import the OpenAI library
+from openai.api_resources.chat_completion import ChatCompletion  # Import ChatCompletion from api_resources
 
 # Initialize rich console
 console = Console()
@@ -55,14 +57,13 @@ account_id_cache = {}  # Cache for account ID to display name mapping
 
 def main():
     global epic_link_field_id, epic_name_field_id
-    # Check if the search term or issue key is provided as a command-line argument
+
     if len(sys.argv) > 3:
         console.print(f"[{STYLES['error']}]Usage: script.py [ISSUE_KEY_OR_SEARCH_STRING] [MAX_BOX_WIDTH][/]")
         sys.exit(1)
 
-    input_arg = sys.argv[1] if len(sys.argv) >= 2 else None  # The Jira issue key or search string provided by the user
+    input_arg = sys.argv[1] if len(sys.argv) >= 2 else None
 
-    # Check if MAX_BOX_WIDTH is provided as a command-line argument
     global MAX_BOX_WIDTH
     if len(sys.argv) == 3:
         try:
@@ -71,58 +72,59 @@ def main():
             console.print(f"[{STYLES['error']}]Invalid MAX_BOX_WIDTH value. It must be an integer.[/]")
             sys.exit(1)
 
-    # Load environment variables from the .env file
     load_dotenv()
 
-    # Retrieve Jira parameters from environment variables
-    jira_url = os.getenv('JIRA_URL')          # The base URL of your Jira instance
-    username = os.getenv('JIRA_USERNAME')     # Your Jira username (usually your email)
-    api_token = os.getenv('JIRA_API_TOKEN')   # Your Jira API token
+    jira_url = os.getenv('JIRA_URL')
+    username = os.getenv('JIRA_USERNAME')
+    api_token = os.getenv('JIRA_API_TOKEN')
     epic_link_field_id = os.getenv('EPIC_LINK_FIELD_ID')
     epic_name_field_id = os.getenv('EPIC_NAME_FIELD_ID')
 
-    # Check if all required parameters are present
+    # Load OpenAI API key and model
+    openai_api_key = os.getenv('OPENAI_API_KEY')
+    openai_model = os.getenv('OPENAI_MODEL', 'gpt-4')
+
     if not jira_url or not username or not api_token or not epic_link_field_id or not epic_name_field_id:
         console.print(f"[{STYLES['error']}]Please set JIRA_URL, JIRA_USERNAME, JIRA_API_TOKEN, EPIC_LINK_FIELD_ID, and EPIC_NAME_FIELD_ID in your .env file.[/]")
         sys.exit(1)
 
-    # Set up authentication using basic auth with username and API token
+    if not openai_api_key:
+        console.print(f"[{STYLES['error']}]Please set OPENAI_API_KEY in your .env file.[/]")
+        sys.exit(1)
+
+    openai.api_key = openai_api_key
+
     auth = (username, api_token)
 
-    # Define the headers for the HTTP request
     headers = {
         "Accept": "application/json",
-        "Content-Type": "application/json"  # Needed for POST and DELETE requests
+        "Content-Type": "application/json"
     }
 
-    # Initialize the interactive shell state
-    state = InteractiveShellState(jira_url, auth, headers)
+    state = InteractiveShellState(jira_url, auth, headers, openai_model)
 
-    # If an initial input is provided, process it
     if input_arg:
-        # Initial display based on the input argument
         process_input(input_arg, state, headers)
     else:
         console.print(f"[{STYLES['warning']}]No initial ticket or search string provided. Starting interactive shell.[/]")
     
-    # Start the interactive shell
     interactive_shell(state, headers)
 
 class InteractiveShellState:
-    def __init__(self, jira_url, auth, headers):
+    def __init__(self, jira_url, auth, headers, openai_model):
         self.last_ticket_key = None
         self.jira_url = jira_url
         self.auth = auth
         self.headers = headers
         self.statuses_cache = {}
         self.session = PromptSession()
+        self.openai_model = openai_model
 
     def get_completer(self):
         return StatusCompleter(self)
 
     def update_last_ticket_key(self, issue_key):
         self.last_ticket_key = issue_key
-        # Clear statuses_cache
         self.statuses_cache.pop(issue_key, None)
 
 class StatusCompleter(Completer):
@@ -133,7 +135,6 @@ class StatusCompleter(Completer):
         text = document.text_before_cursor
         if self.state.last_ticket_key and not text.strip():
             issue_key = self.state.last_ticket_key
-            # Fetch possible transitions for the current ticket
             if issue_key in self.state.statuses_cache:
                 statuses = self.state.statuses_cache[issue_key]['statuses']
             else:
@@ -160,14 +161,12 @@ def interactive_shell(state, headers):
             break
 
         if not user_input:
-            # Empty input, display details of the current ticket in focus
             if state.last_ticket_key:
                 get_issue_details(state.last_ticket_key, state.jira_url, state.auth, headers)
             else:
                 console.print(f"[{STYLES['warning']}]No ticket in focus to display details.[/]")
             continue
 
-        # Check if user_input is a status to transition to
         if state.last_ticket_key:
             issue_key = state.last_ticket_key
             if issue_key in state.statuses_cache:
@@ -177,17 +176,14 @@ def interactive_shell(state, headers):
                 statuses = [t['to']['name'] for t in transitions]
                 state.statuses_cache[issue_key] = {'statuses': statuses, 'transitions': transitions}
             if user_input in statuses:
-                # Update issue status
                 update_issue_status(issue_key, user_input, state, headers)
                 continue
 
         if user_input.startswith('/'):
-            # Handle commands
             if user_input == '/q':
                 console.print(f"[{STYLES['success']}]Exiting...[/]")
                 break
             elif user_input.startswith('/c'):
-                # Add a comment to the last ticket
                 if state.last_ticket_key:
                     comment = user_input[2:].strip()
                     if comment:
@@ -197,15 +193,12 @@ def interactive_shell(state, headers):
                 else:
                     console.print(f"[{STYLES['warning']}]No ticket selected to add a comment.[/]")
             elif user_input == '/h':
-                # Display help
                 display_help()
             elif user_input == '/s':
-                # Specify JQL to execute
                 console.print(f"[{STYLES['search_result_header']}]Enter your JQL query:[/]")
                 jql_query = state.session.prompt("> ").strip()
                 execute_jql(jql_query, state.jira_url, state.auth, headers)
             elif user_input.startswith('/d'):
-                # Delete a ticket
                 delete_command = user_input.split()
                 if len(delete_command) == 2:
                     ticket_id = delete_command[1].strip()
@@ -213,10 +206,8 @@ def interactive_shell(state, headers):
                 else:
                     console.print(f"[{STYLES['warning']}]Usage: /d TICKET_ID[/]")
             elif user_input == '/r':
-                # Display recent tickets reported by the user
                 display_recent_tickets(state.jira_url, state.auth, headers)
             elif user_input.startswith('/t'):
-                # Handle tree command
                 tokens = user_input.split()
                 if len(tokens) == 1:
                     if state.last_ticket_key:
@@ -229,14 +220,11 @@ def interactive_shell(state, headers):
                 else:
                     console.print(f"[{STYLES['warning']}]Usage: /t [TICKET_ID][/]")
             elif user_input.startswith('/n'):
-                # Handle new ticket creation
                 if state.last_ticket_key:
                     create_new_issue(state.last_ticket_key, state.jira_url, state.auth, headers, state.session, state)
                 else:
-                    # No ticket focused, create a new epic
                     create_new_epic(state.jira_url, state.auth, headers, state.session, state)
             elif user_input.startswith('/l'):
-                # Handle linking tickets
                 tokens = user_input.split()
                 if len(tokens) == 2:
                     if state.last_ticket_key:
@@ -247,20 +235,16 @@ def interactive_shell(state, headers):
                 else:
                     console.print(f"[{STYLES['warning']}]Usage: /l TICKET_ID[/]")
             elif user_input == '/e':
-                # List all epics reported by the user
                 list_user_epics(state.jira_url, state.auth, headers)
             elif user_input == '/x':
-                # Clear the current focused ticket
                 state.update_last_ticket_key(None)
                 console.print(f"[{STYLES['success']}]Current focused ticket cleared.[/]")
             elif user_input == '/u':
-                # Update the description of the currently focused ticket
                 if state.last_ticket_key:
                     update_description(state.last_ticket_key, state.jira_url, state.auth, headers)
                 else:
                     console.print(f"[{STYLES['warning']}]No ticket selected to update description.[/]")
             elif user_input == '/p':
-                # Change focused ticket to parent and display details
                 if state.last_ticket_key:
                     issue = get_issue(state.last_ticket_key, state.jira_url, state.auth, headers)
                     if issue:
@@ -275,11 +259,29 @@ def interactive_shell(state, headers):
                         console.print(f"[{STYLES['error']}]Failed to fetch issue {state.last_ticket_key}.[/]")
                 else:
                     console.print(f"[{STYLES['warning']}]No ticket selected to display parent ticket.[/]")
+            elif user_input.startswith('/i'):
+                question = user_input[2:].strip()
+                if question:
+                    get_chatgpt_response(question, state)
+                else:
+                    console.print(f"[{STYLES['warning']}]Please provide a question after '/i'.[/]")
             else:
                 console.print(f"[{STYLES['warning']}]Unknown command. Type '/h' for help.[/]")
         else:
-            # Process input as issue key or search string
             process_input(user_input, state, headers)
+
+def get_chatgpt_response(question, state):
+    try:
+        response = ChatCompletion.create(
+            model=state.openai_model,
+            messages=[
+                {"role": "user", "content": question}
+            ]
+        )
+        answer = response['choices'][0]['message']['content']
+        console.print(f"\n[{STYLES['search_result_header']}]ChatGPT Response:[/]\n{answer}")
+    except Exception as e:
+        console.print(f"[{STYLES['error']}]An error occurred while getting response from ChatGPT: {e}[/]")
 
 def update_description(issue_key, jira_url, auth, headers):
     # Fetch the current description
@@ -340,6 +342,7 @@ def display_help():
 /x          - Clear the current focused ticket.
 /u          - Update the description of the currently focused ticket.
 /p          - Change focus to parent ticket and display its details.
+/i          - Ask a question to ChatGPT. Usage: /i Your question here.
 
 Type a ticket ID or search string to display ticket information or search results.
 

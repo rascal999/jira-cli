@@ -2,13 +2,7 @@
 Jira from the CLI
 
 ```
-./jira_cli.py
-
-No initial ticket or search string provided. Starting interactive shell.
-
-Type '/h' for help.
-
-> /h
+❯ ./jira_cli.py                                                                                  17:53:36 [29/976]
 
 Available Commands:
 
@@ -19,7 +13,8 @@ Available Commands:
 /d TICKET   - Delete a ticket. Usage: /d TICKET_ID
 /r          - Display top 10 recently updated tickets reported by you.
 /t [TICKET] - Display issue tree starting from current or specified ticket.
-/n          - Create a new ticket under the current ticket (epic or task), or create a new epic if no ticket is focused.
+/n          - Create a new ticket under the current ticket (epic or task), or create a new epic if no ticket is
+focused.
 /l TICKET   - Link current ticket to specified ticket as 'Relates to'.
 /e          - List all epics reported by you.
 /x          - Clear the current focused ticket.
@@ -29,10 +24,27 @@ Available Commands:
 
 Type a ticket ID or search string to display ticket information or search results.
 
-When a ticket is focused, press [Tab] on an empty prompt to cycle through possible statuses. Press [Enter] to update the ticket to the selected status.
+When a ticket is focused, press [Tab] to display possible statuses above the prompt. Type the status name and
+press [Enter] to update the ticket to the selected status.
 
+No initial ticket or search string provided. Starting interactive shell.
 
->
+Type '/h' for help.
+> SECOPS-2668
+╭─ ### Issue Details ### ────────────────────────────────────────────────────────────────────────────────────╮
+│ Issue Key: SECOPS-2668                                                                                     │
+│ Summary: Test summary                                                                                      │
+│ Issue Type: Epic                                                                                           │
+│ Status: Backlog                                                                                            │
+│ Priority: P1 - Critical                                                                                    │
+│ Assignee: Unassigned                                                                                       │
+│ Reporter: Aidan                                                                                            │
+│ Description:                                                                                               │
+│ Test description                                                                                           │
+│                                                                                                            │
+│ Issue URL: https://XXX.atlassian.net//browse/SECOPS-2668                                                   │
+╰────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+[SECOPS-2668 Test summary]>
 ```
 
 ## Install

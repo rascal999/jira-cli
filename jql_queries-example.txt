@@ -1,0 +1,2 @@
+# Bananas Open
+issuetype = "Bananas" and project not in ("CRAP") and statusCategory != Done

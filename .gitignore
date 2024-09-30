@@ -1,3 +1,4 @@
 .env
 .venv/
 trash/
+jql_queries.txt

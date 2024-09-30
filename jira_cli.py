@@ -12,10 +12,11 @@ from rich import box
 from urllib.parse import quote
 from prompt_toolkit import PromptSession
 from prompt_toolkit.completion import Completer, Completion
+from prompt_toolkit.key_binding import KeyBindings
 import tempfile
 import subprocess
-import openai  # Import the OpenAI library
-from openai.api_resources.chat_completion import ChatCompletion  # Import ChatCompletion from api_resources
+import openai
+from openai.api_resources.chat_completion import ChatCompletion
 
 # Initialize rich console
 console = Console()
@@ -103,16 +104,20 @@ def main():
 
     state = InteractiveShellState(jira_url, auth, headers, openai_model)
 
+    # Display help when script is launched
+    display_help()
+
     if input_arg:
         process_input(input_arg, state, headers)
     else:
         console.print(f"[{STYLES['warning']}]No initial ticket or search string provided. Starting interactive shell.[/]")
-    
+
     interactive_shell(state, headers)
 
 class InteractiveShellState:
     def __init__(self, jira_url, auth, headers, openai_model):
         self.last_ticket_key = None
+        self.last_ticket_summary = None
         self.jira_url = jira_url
         self.auth = auth
         self.headers = headers
@@ -123,9 +128,19 @@ class InteractiveShellState:
     def get_completer(self):
         return StatusCompleter(self)
 
-    def update_last_ticket_key(self, issue_key):
+    def update_last_ticket(self, issue_key, summary=None):
         self.last_ticket_key = issue_key
+        self.last_ticket_summary = summary
         self.statuses_cache.pop(issue_key, None)
+
+    def get_statuses(self, issue_key):
+        if issue_key in self.statuses_cache:
+            statuses = self.statuses_cache[issue_key]['statuses']
+        else:
+            transitions = get_transitions(issue_key, self.jira_url, self.auth, self.headers)
+            statuses = [t['to']['name'] for t in transitions]
+            self.statuses_cache[issue_key] = {'statuses': statuses, 'transitions': transitions}
+        return statuses
 
 class StatusCompleter(Completer):
     def __init__(self, state):
@@ -135,24 +150,31 @@ class StatusCompleter(Completer):
         text = document.text_before_cursor
         if self.state.last_ticket_key and not text.strip():
             issue_key = self.state.last_ticket_key
-            if issue_key in self.state.statuses_cache:
-                statuses = self.state.statuses_cache[issue_key]['statuses']
-            else:
-                transitions = get_transitions(issue_key, self.state.jira_url, self.state.auth, self.state.headers)
-                statuses = [t['to']['name'] for t in transitions]
-                self.state.statuses_cache[issue_key] = {'statuses': statuses, 'transitions': transitions}
+            statuses = self.state.get_statuses(issue_key)
             for status in statuses:
                 yield Completion(status, start_position=0)
 
 def interactive_shell(state, headers):
     console.print(f"\nType '/h' for help.")
+    kb = KeyBindings()
+
+    @kb.add('tab')
+    def _(event):
+        if state.last_ticket_key:
+            statuses = state.get_statuses(state.last_ticket_key)
+            console.print(f"\n[{STYLES['search_result_header']}]Available Statuses:[/]")
+            for status in statuses:
+                console.print(f" - {status}")
+        else:
+            pass  # No ticket in focus
+
     while True:
         try:
             if state.last_ticket_key:
-                prompt_str = f"\n[{state.last_ticket_key}]> "
+                prompt_str = f"[{state.last_ticket_key} {state.last_ticket_summary}]> "
             else:
-                prompt_str = "\n> "
-            user_input = state.session.prompt(prompt_str, completer=state.get_completer()).strip()
+                prompt_str = "> "
+            user_input = state.session.prompt(prompt_str, completer=state.get_completer(), key_bindings=kb).strip()
         except KeyboardInterrupt:
             console.print(f"[{STYLES['warning']}]Interrupted. Use '/q' to exit.[/]")
             continue
@@ -162,19 +184,14 @@ def interactive_shell(state, headers):
 
         if not user_input:
             if state.last_ticket_key:
-                get_issue_details(state.last_ticket_key, state.jira_url, state.auth, headers)
+                get_issue_details(state.last_ticket_key, state.jira_url, state.auth, headers, state)
             else:
                 console.print(f"[{STYLES['warning']}]No ticket in focus to display details.[/]")
             continue
 
         if state.last_ticket_key:
             issue_key = state.last_ticket_key
-            if issue_key in state.statuses_cache:
-                statuses = state.statuses_cache[issue_key]['statuses']
-            else:
-                transitions = get_transitions(issue_key, state.jira_url, state.auth, headers)
-                statuses = [t['to']['name'] for t in transitions]
-                state.statuses_cache[issue_key] = {'statuses': statuses, 'transitions': transitions}
+            statuses = state.get_statuses(issue_key)
             if user_input in statuses:
                 update_issue_status(issue_key, user_input, state, headers)
                 continue
@@ -237,11 +254,11 @@ def interactive_shell(state, headers):
             elif user_input == '/e':
                 list_user_epics(state.jira_url, state.auth, headers)
             elif user_input == '/x':
-                state.update_last_ticket_key(None)
+                state.update_last_ticket(None)
                 console.print(f"[{STYLES['success']}]Current focused ticket cleared.[/]")
             elif user_input == '/u':
                 if state.last_ticket_key:
-                    update_description(state.last_ticket_key, state.jira_url, state.auth, headers)
+                    update_description(state.last_ticket_key, state.jira_url, state.auth, headers, state)
                 else:
                     console.print(f"[{STYLES['warning']}]No ticket selected to update description.[/]")
             elif user_input == '/p':
@@ -251,8 +268,7 @@ def interactive_shell(state, headers):
                         parent = issue.get('fields', {}).get('parent')
                         if parent:
                             parent_key = parent.get('key')
-                            state.update_last_ticket_key(parent_key)
-                            get_issue_details(parent_key, state.jira_url, state.auth, headers)
+                            get_issue_details(parent_key, state.jira_url, state.auth, headers, state)
                         else:
                             console.print(f"[{STYLES['warning']}]No parent issue found for {state.last_ticket_key}.[/]")
                     else:
@@ -283,7 +299,7 @@ def get_chatgpt_response(question, state):
     except Exception as e:
         console.print(f"[{STYLES['error']}]An error occurred while getting response from ChatGPT: {e}[/]")
 
-def update_description(issue_key, jira_url, auth, headers):
+def update_description(issue_key, jira_url, auth, headers, state):
     # Fetch the current description
     issue = get_issue(issue_key, jira_url, auth, headers)
     if not issue:
@@ -313,6 +329,8 @@ def update_description(issue_key, jira_url, auth, headers):
         response = requests.put(url, json=payload, headers=headers, auth=auth)
         if response.status_code == 204:
             console.print(f"[{STYLES['success']}]Description for {issue_key} updated successfully.[/]")
+            # Display the updated issue details
+            get_issue_details(issue_key, jira_url, auth, headers, state)
         else:
             console.print(f"[{STYLES['error']}]Failed to update description. Status code: {response.status_code}[/]")
             print("Response:", response.text)
@@ -346,7 +364,7 @@ def display_help():
 
 Type a ticket ID or search string to display ticket information or search results.
 
-When a ticket is focused, press [bold][Tab][/bold] on an empty prompt to cycle through possible statuses. Press [bold][Enter][/bold] to update the ticket to the selected status.
+When a ticket is focused, press [bold][Tab][/bold] to display possible statuses above the prompt. Type the status name and press [bold][Enter][/bold] to update the ticket to the selected status.
 """)
 
 def add_comment(issue_key, jira_url, auth, headers, comment):
@@ -434,8 +452,7 @@ def process_input(input_arg, state, headers):
     if is_valid_issue_key(input_arg):
         # Input is a valid issue key, retrieve and print issue details
         issue_key = input_arg.upper()
-        get_issue_details(issue_key, state.jira_url, state.auth, headers)
-        state.update_last_ticket_key(issue_key)  # Update the last ticket key in state
+        get_issue_details(issue_key, state.jira_url, state.auth, headers, state)
     else:
         # Input is a search string, perform a search and print matching issues
         search_string = input_arg
@@ -446,10 +463,13 @@ def is_valid_issue_key(key):
     pattern = r'^[A-Z][A-Z0-9]+-\d+$'
     return re.match(pattern, key.upper()) is not None
 
-def get_issue_details(issue_key, jira_url, auth, headers):
+def get_issue_details(issue_key, jira_url, auth, headers, state):
     # Fetch issue details
     issue = get_issue(issue_key, jira_url, auth, headers)
     if issue:
+        # Clear the screen
+        os.system('cls' if os.name == 'nt' else 'clear')
+        state.update_last_ticket(issue_key, issue.get('fields', {}).get('summary', ''))
         print_issue_details(issue, jira_url, auth, headers)
         print_issue_comments(issue_key, jira_url, auth, headers)  # Fetch and print comments
 
@@ -512,7 +532,6 @@ def get_epic_children(epic_key, jira_url, auth, headers):
             console.print(f"[{STYLES['error']}]Failed to fetch child issues for Epic {epic_key}. Status code: {response.status_code}[/]")
             print("Response:", response.text)
             return []
-        return []
     except requests.exceptions.RequestException as e:
         console.print(f"[{STYLES['error']}]An error occurred while fetching child issues for Epic {epic_key}: {e}[/]")
         return []
@@ -599,6 +618,8 @@ def print_issue_details(issue, jira_url, auth, headers):
     issue_type = fields.get('issuetype', {}).get('name', 'N/A')  # The type of issue (e.g., Bug)
     status = fields.get('status', {}).get('name', 'N/A')  # The current status of the issue
 
+    priority = fields.get('priority', {}).get('name', 'N/A')  # The priority of the issue
+
     # Handle the assignee field safely
     assignee_field = fields.get('assignee')
     if assignee_field is not None:
@@ -624,9 +645,6 @@ def print_issue_details(issue, jira_url, auth, headers):
     issue_text.append(f"Issue Key: ", style=STYLES['issue_details_label'])
     issue_text.append(f"{key}\n", style=STYLES['issue_details_value'])
 
-    issue_text.append(f"Issue URL: ", style=STYLES['issue_details_label'])
-    issue_text.append(f"{issue_url}\n", style=STYLES['issue_details_value'])
-
     issue_text.append(f"Summary: ", style=STYLES['issue_details_label'])
     issue_text.append(f"{summary}\n", style=STYLES['issue_details_value'])
 
@@ -636,6 +654,9 @@ def print_issue_details(issue, jira_url, auth, headers):
     issue_text.append(f"Status: ", style=STYLES['issue_details_label'])
     issue_text.append(f"{status}\n", style=STYLES['issue_details_value'])
 
+    issue_text.append(f"Priority: ", style=STYLES['issue_details_label'])
+    issue_text.append(f"{priority}\n", style=STYLES['issue_details_value'])
+
     issue_text.append(f"Assignee: ", style=STYLES['issue_details_label'])
     issue_text.append(f"{assignee}\n", style=STYLES['issue_details_value'])
 
@@ -643,7 +664,10 @@ def print_issue_details(issue, jira_url, auth, headers):
     issue_text.append(f"{reporter}\n", style=STYLES['issue_details_value'])
 
     issue_text.append(f"Description:\n", style=STYLES['issue_details_label'])
-    issue_text.append(f"{description}", style=STYLES['issue_details_value'])
+    issue_text.append(f"{description}\n\n", style=STYLES['issue_details_value'])
+
+    issue_text.append(f"Issue URL: ", style=STYLES['issue_details_label'])
+    issue_text.append(f"{issue_url}", style=STYLES['issue_details_value'])
 
     # Create a Panel around the issue details with configurable width
     issue_panel = Panel(
@@ -900,8 +924,7 @@ def create_new_issue(issue_key, jira_url, auth, headers, session, state):
             new_issue = response.json()
             new_issue_key = new_issue.get('key')
             console.print(f"[{STYLES['success']}]Issue {new_issue_key} created successfully.[/]")
-            state.update_last_ticket_key(new_issue_key)
-            get_issue_details(new_issue_key, jira_url, auth, headers)
+            get_issue_details(new_issue_key, jira_url, auth, headers, state)
         else:
             console.print(f"[{STYLES['error']}]Failed to create issue. Status code: {response.status_code}[/]")
             print("Response:", response.text)
@@ -945,8 +968,7 @@ def create_new_epic(jira_url, auth, headers, session, state):
             new_issue = response.json()
             new_issue_key = new_issue.get('key')
             console.print(f"[{STYLES['success']}]Epic {new_issue_key} created successfully.[/]")
-            state.update_last_ticket_key(new_issue_key)
-            get_issue_details(new_issue_key, jira_url, auth, headers)
+            get_issue_details(new_issue_key, jira_url, auth, headers, state)
         else:
             console.print(f"[{STYLES['error']}]Failed to create epic. Status code: {response.status_code}[/]")
             print("Response:", response.text)
@@ -1001,6 +1023,31 @@ def list_user_epics(jira_url, auth, headers):
     except requests.exceptions.RequestException as e:
         console.print(f"[{STYLES['error']}]An error occurred while retrieving epics: {e}[/]")
 
+def display_recent_tickets(jira_url, auth, headers):
+    jql_query = 'reporter = currentUser() ORDER BY updated DESC'
+    params = {
+        'jql': jql_query,
+        'fields': 'key,summary,issuetype,status,assignee,reporter',
+        'maxResults': 10  # Adjust as needed
+    }
+    search_url = f"{jira_url}/rest/api/2/search"
+    try:
+        response = requests.get(search_url, headers=headers, auth=auth, params=params)
+        if response.status_code == 200:
+            search_results = response.json()
+            issues = search_results.get('issues', [])
+            if issues:
+                console.print(f"[{STYLES['search_result_header']}]Your Recently Updated Tickets:[/]")
+                for issue in issues:
+                    print_issue_summary(issue)
+            else:
+                console.print(f"[{STYLES['warning']}]No recently updated tickets found reported by you.[/]")
+        else:
+            console.print(f"[{STYLES['error']}]Failed to retrieve recent tickets. Status code: {response.status_code}[/]")
+            print("Response:", response.text)
+    except requests.exceptions.RequestException as e:
+        console.print(f"[{STYLES['error']}]An error occurred while retrieving recent tickets: {e}[/]")
+
 def get_transitions(issue_key, jira_url, auth, headers):
     url = f"{jira_url}/rest/api/2/issue/{issue_key}/transitions"
     try:
@@ -1017,12 +1064,7 @@ def get_transitions(issue_key, jira_url, auth, headers):
         return []
 
 def update_issue_status(issue_key, status_name, state, headers):
-    if issue_key in state.statuses_cache:
-        transitions = state.statuses_cache[issue_key]['transitions']
-    else:
-        transitions = get_transitions(issue_key, state.jira_url, state.auth, headers)
-        statuses = [t['to']['name'] for t in transitions]
-        state.statuses_cache[issue_key] = {'statuses': statuses, 'transitions': transitions}
+    transitions = state.statuses_cache[issue_key]['transitions']
     # Find the transition ID for the status_name
     transition_id = None
     for t in transitions:

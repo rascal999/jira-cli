@@ -196,7 +196,7 @@ def interactive_shell(state, headers):
                 display_help()
             elif user_input == '/s':
                 console.print(f"[{STYLES['search_result_header']}]Enter your JQL query:[/]")
-                jql_query = state.session.prompt("> ").strip()
+                jql_query = state.session.prompt("[JQL]> ").strip()
                 execute_jql(jql_query, state.jira_url, state.auth, headers)
             elif user_input.startswith('/d'):
                 delete_command = user_input.split()
@@ -392,17 +392,17 @@ def delete_ticket(issue_key, jira_url, auth, headers, session):
         console.print(f"[{STYLES['warning']}]Deletion cancelled.[/]")
 
 def execute_jql(jql_query, jira_url, auth, headers):
-    params = {
+    payload = {
         'jql': jql_query,
-        'fields': 'key,summary,issuetype,status,assignee,reporter',  # Fields to retrieve
-        'maxResults': 100  # Increased to return more results
+        'fields': ['key', 'summary', 'issuetype', 'status', 'assignee', 'reporter'],
+        'maxResults': 100
     }
 
     search_url = f"{jira_url}/rest/api/2/search"
 
     try:
-        # Make the GET request to search for issues
-        response = requests.get(search_url, headers=headers, auth=auth, params=params)
+        # Make the POST request to search for issues
+        response = requests.post(search_url, headers=headers, auth=auth, json=payload)
 
         # Check if the request was successful
         if response.status_code == 200:
@@ -428,32 +428,6 @@ def execute_jql(jql_query, jira_url, auth, headers):
     except requests.exceptions.RequestException as e:
         # Handle any exceptions that occur during the request
         console.print(f"[{STYLES['error']}]An error occurred while executing JQL query: {e}[/]")
-
-def display_recent_tickets(jira_url, auth, headers):
-    # Construct JQL query to get top 10 most recently updated tickets reported by the user
-    jql_query = 'reporter = currentUser() ORDER BY updated DESC'
-    params = {
-        'jql': jql_query,
-        'fields': 'key,summary,issuetype,status,assignee,reporter',
-        'maxResults': 10
-    }
-    search_url = f"{jira_url}/rest/api/2/search"
-    try:
-        response = requests.get(search_url, headers=headers, auth=auth, params=params)
-        if response.status_code == 200:
-            search_results = response.json()
-            issues = search_results.get('issues', [])
-            if issues:
-                console.print(f"[{STYLES['search_result_header']}]Your Top 10 Recently Updated Tickets:[/]")
-                for issue in issues:
-                    print_issue_summary(issue)
-            else:
-                console.print(f"[{STYLES['warning']}]No recent tickets found reported by you.[/]")
-        else:
-            console.print(f"[{STYLES['error']}]Failed to retrieve recent tickets. Status code: {response.status_code}[/]")
-            print("Response:", response.text)
-    except requests.exceptions.RequestException as e:
-        console.print(f"[{STYLES['error']}]An error occurred while retrieving recent tickets: {e}[/]")
 
 def process_input(input_arg, state, headers):
     input_arg = input_arg.strip()

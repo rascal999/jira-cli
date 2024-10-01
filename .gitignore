@@ -2,3 +2,4 @@
 .venv/
 trash/
 jql_queries.txt
+trivy*

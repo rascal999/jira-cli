@@ -306,7 +306,8 @@ def update_description(issue_key, jira_url, auth, headers, state):
         console.print(f"[{STYLES['error']}]Failed to fetch issue {issue_key}.[/]")
         return
     fields = issue.get('fields', {})
-    current_description = fields.get('description', '')
+    current_description = fields.get('description') or ''  # Ensures a string value
+
     # Create a temporary file with the current description
     editor = os.environ.get('EDITOR', 'vim')
     try:
@@ -433,7 +434,7 @@ def execute_jql(jql_query, jira_url, auth, headers):
                     print_issue_summary(issue)
             else:
                 console.print(f"[{STYLES['warning']}]No issues found for the provided JQL query.[/]")
-            
+
             # Display the URL for the JQL query
             jql_encoded = quote(jql_query)
             jql_url = f"{jira_url}/issues/?jql={jql_encoded}"

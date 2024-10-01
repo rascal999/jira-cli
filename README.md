@@ -2,7 +2,7 @@
 Jira from the CLI
 
 ```
-❯ ./jira_cli_1.py
+❯ ./jira_cli.py
 
 Available Commands:
 

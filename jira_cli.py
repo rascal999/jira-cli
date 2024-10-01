@@ -51,6 +51,7 @@ STYLES = {
     'search_result_label': 'cyan',
     'search_result_value': 'white',
     'confirmation': 'bold red',
+    'rename_header': 'bold purple',  # Added for rename confirmation
 }
 
 # Global variables
@@ -281,6 +282,15 @@ def interactive_shell(state, headers):
                     get_chatgpt_response(question, state)
                 else:
                     console.print(f"[{STYLES['warning']}]Please provide a question after '/i'.[/]")
+            elif user_input.startswith('/a'):
+                if state.last_ticket_key:
+                    new_summary = user_input[3:].strip()
+                    if new_summary:
+                        update_issue_summary(state.last_ticket_key, new_summary, state, headers)
+                    else:
+                        console.print(f"[{STYLES['warning']}]Please provide a new summary after '/a'.[/]")
+                else:
+                    console.print(f"[{STYLES['warning']}]No ticket selected to rename.[/]")
             else:
                 console.print(f"[{STYLES['warning']}]Unknown command. Type '/h' for help.[/]")
         else:
@@ -348,20 +358,21 @@ def display_help():
     console.print(f"""
 [{STYLES['search_result_header']}]Available Commands:[/]
 
-/h          - Show this help message.
-/q          - Quit the program.
-/c          - Add a comment to the last ticket. Usage: /c Your comment here.
-/s          - Enter JQL mode to execute a JQL query.
-/d TICKET   - Delete a ticket. Usage: /d TICKET_ID
-/r          - Display top 10 recently updated tickets reported by you.
-/t [TICKET] - Display issue tree starting from current or specified ticket.
-/n          - Create a new ticket under the current ticket (epic or task), or create a new epic if no ticket is focused.
-/l TICKET   - Link current ticket to specified ticket as 'Relates to'.
-/e          - List all epics reported by you.
-/x          - Clear the current focused ticket.
-/u          - Update the description of the currently focused ticket.
-/p          - Change focus to parent ticket and display its details.
-/i          - Ask a question to ChatGPT. Usage: /i Your question here.
+/h           - Show this help message.
+/q           - Quit the program.
+/c           - Add a comment to the last ticket. Usage: /c Your comment here.
+/s           - Enter JQL mode to execute a JQL query.
+/d TICKET    - Delete a ticket. Usage: /d TICKET_ID
+/r           - Display top 10 recently updated tickets reported by you.
+/t [TICKET]  - Display issue tree starting from current or specified ticket.
+/n           - Create a new ticket under the current ticket (epic or task), or create a new epic if no ticket is focused.
+/l TICKET    - Link current ticket to specified ticket as 'Relates to'.
+/e           - List all epics reported by you.
+/x           - Clear the current focused ticket.
+/u           - Update the description of the currently focused ticket.
+/p           - Change focus to parent ticket and display its details.
+/i           - Ask a question to ChatGPT. Usage: /i Your question here.
+/a <summary> - Rename the summary of the currently focused ticket. Usage: /a New summary here.
 
 Type a ticket ID or search string to display ticket information or search results.
 
@@ -409,6 +420,7 @@ def delete_ticket(issue_key, jira_url, auth, headers, session):
             console.print(f"[{STYLES['error']}]An error occurred while deleting the ticket: {e}[/]")
     else:
         console.print(f"[{STYLES['warning']}]Deletion cancelled.[/]")
+
 
 def execute_jql(jql_query, jira_url, auth, headers):
     payload = {
@@ -1093,6 +1105,32 @@ def update_issue_status(issue_key, status_name, state, headers):
             print("Response:", response.text)
     except requests.exceptions.RequestException as e:
         console.print(f"[{STYLES['error']}]An error occurred while transitioning issue: {e}[/]")
+
+def update_issue_summary(issue_key, new_summary, state, headers):
+    if not new_summary:
+        console.print(f"[{STYLES['warning']}]New summary cannot be empty.[/]")
+        return
+
+    url = f"{state.jira_url}/rest/api/2/issue/{issue_key}"
+    payload = {
+        "fields": {
+            "summary": new_summary
+        }
+    }
+
+    try:
+        response = requests.put(url, json=payload, headers=headers, auth=state.auth)
+        if response.status_code == 204:
+            console.print(f"[{STYLES['success']}]Issue {issue_key} summary updated successfully to '{new_summary}'.[/]")
+            # Update the last ticket summary in the state
+            state.update_last_ticket(issue_key, new_summary)
+            # Refresh issue details
+            get_issue_details(issue_key, state.jira_url, state.auth, headers, state)
+        else:
+            console.print(f"[{STYLES['error']}]Failed to update summary for issue {issue_key}. Status code: {response.status_code}[/]")
+            print("Response:", response.text)
+    except requests.exceptions.RequestException as e:
+        console.print(f"[{STYLES['error']}]An error occurred while updating the summary: {e}[/]")
 
 if __name__ == '__main__':
     main()

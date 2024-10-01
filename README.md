@@ -6,22 +6,22 @@ Jira from the CLI
 
 Available Commands:
 
-/h           - Show this help message.
-/q           - Quit the program.
-/c           - Add a comment to the last ticket. Usage: /c Your comment here.
-/s           - Enter JQL mode to execute a JQL query.
-/d TICKET    - Delete a ticket. Usage: /d TICKET_ID
-/r           - Display top 10 recently updated tickets reported by you.
-/t [TICKET]  - Display issue tree starting from current or specified ticket.
-/n           - Create a new ticket under the current ticket (epic or task), or create a new epic if no ticket is
+/h          - Show this help message.
+/q          - Quit the program.
+/c          - Add a comment to the last ticket. Usage: /c Your comment here.
+/s          - Enter JQL mode to execute a JQL query.
+/d TICKET   - Delete a ticket. Usage: /d TICKET_ID
+/r          - Display top 10 recently updated tickets reported by you.
+/t [TICKET] - Display issue tree starting from current or specified ticket.
+/n          - Create a new ticket under the current ticket (epic or task), or create a new epic if no ticket is
 focused.
-/l TICKET    - Link current ticket to specified ticket as 'Relates to'.
-/e           - List all epics reported by you.
-/x           - Clear the current focused ticket.
-/u           - Update the description of the currently focused ticket.
-/p           - Change focus to parent ticket and display its details.
-/i           - Ask a question to ChatGPT. Usage: /i Your question here.
-/a <summary> - Rename the summary of the currently focused ticket. Usage: /a New summary here.
+/l TICKET   - Link current ticket to specified ticket as 'Relates to'.
+/e          - List all epics reported by you.
+/x          - Clear the current focused ticket.
+/u          - Update the description of the currently focused ticket.
+/p          - Change focus to parent ticket and display its details.
+/i          - Ask a question to ChatGPT. Usage: /i Your question here.
+/a SUMMARY  - Rename the summary of the currently focused ticket. Usage: /a New summary here.
 
 Type a ticket ID or search string to display ticket information or search results.
 

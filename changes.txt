@@ -1,0 +1,10 @@
+# Update script such that
+
+1. CLI and JQL prompt history is maintained across launches
+2. Support unlinking of issue
+3. Linked issues should be sorted by ticket ID
+4. /d should support multiple tickets. But what about showing these tickets?
+5. Don't fetch ticket if /q specified
+
+# Check
+1. Description field doesn't always work (e.g. KARM-515), determine why

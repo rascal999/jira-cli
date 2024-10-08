@@ -4,3 +4,4 @@ trash/
 jql_queries.txt
 trivy*
 jira_cli.txt
+__pycache__

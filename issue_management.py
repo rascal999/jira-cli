@@ -141,28 +141,56 @@ class IssueManager:
         color = self.get_color_from_string(issue_type)
         return Text(issue_type, style=color)
 
+    def get_color_for_status(self, status):
+        # Generate a hash of the status name
+        hash_object = hashlib.md5(status.encode())
+        hash_hex = hash_object.hexdigest()
+        
+        # Use the first 6 characters of the hash as an RGB color
+        return f"#{hash_hex[:6]}"
+
+    def get_color_for_string(self, string):
+        # Generate a hash of the string
+        hash_object = hashlib.md5(string.encode())
+        hash_hex = hash_object.hexdigest()
+        
+        # Use the first 6 characters of the hash as an RGB color
+        return f"#{hash_hex[:6]}"
+
     def display_issues_table(self, issues, title):
         table = Table(title=title)
         table.add_column("Key", style="cyan", no_wrap=True)
-        table.add_column("Type", no_wrap=True)
+        table.add_column("Type", style="magenta")
         table.add_column("Summary", style="green")
-        table.add_column("Status", no_wrap=True)
-        table.add_column("Assignee", no_wrap=True)
+        table.add_column("Status", style="yellow")
+        table.add_column("Assignee", style="blue")
 
         for issue in issues:
-            formatted_key = self.format_issue_key(issue)
-            formatted_type = self.format_issue_type(issue.fields.issuetype.name)
-            formatted_status = self.format_status(issue.fields.status.name)
-            formatted_assignee = self.format_assignee(issue.fields.assignee)
+            # Color for Key (based on project)
+            project_key = re.split('-', issue.key)[0]
+            key_color = self.get_color_for_string(project_key)
+            key_text = Text(issue.key, style=key_color)
+
+            # Colors for Type, Status, and Assignee
+            type_color = self.get_color_for_string(issue.fields.issuetype.name)
+            status_color = self.get_color_for_string(issue.fields.status.name)
+            assignee = getattr(issue.fields.assignee, 'displayName', 'Unassigned')
+            assignee_color = self.get_color_for_string(assignee)
+
+            type_text = Text(issue.fields.issuetype.name, style=type_color)
+            status_text = Text(f"[{issue.fields.status.name}]", style=status_color)
+            assignee_text = Text(assignee, style=assignee_color)
+            
             table.add_row(
-                formatted_key,
-                formatted_type,
+                key_text,
+                type_text,
                 issue.fields.summary,
-                formatted_status,
-                formatted_assignee
+                status_text,
+                assignee_text
             )
-        
-        self.console.print(table)
+
+        panel = Panel(table, expand=False, border_style="blue")
+        self.console.print(panel)
 
     def get_user_epics(self):
         """List all epics reported by the current user."""
@@ -189,10 +217,14 @@ class IssueManager:
     def search_issues(self, query):
         try:
             issues = self.jira.search_issues(query)
+            if issues:
+                self.display_issues_table(issues, f"Search Results for '{query}'")
+            else:
+                self.console.print("No issues found matching the query.", style="yellow")
             return issues
         except Exception as e:
             self.console.print(f"Error searching for issues: {str(e)}", style="red")
-            return []  # Return an empty list instead of None
+            return []
 
     def create_new_issue(self, parent=None):
         try:

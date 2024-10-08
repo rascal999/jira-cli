@@ -133,12 +133,7 @@ class JiraCLI(cmd.Cmd):
             self.issue_manager.display_issue(issue)
         else:
             self.console.print(f"No issue found with key {line}. Treating as search string.", style="yellow")
-            issues = self.issue_manager.search_issues(f'text ~ "{line}"')
-            if issues:
-                for issue in issues:
-                    self.console.print(f"{issue.key}: {issue.fields.summary}")
-            else:
-                self.console.print("No issues found matching the query.", style="yellow")
+            self.issue_manager.search_issues(f'text ~ "{line}"')
 
     def do_r(self, arg):
         """Show recently updated issues."""
@@ -240,12 +235,7 @@ class JiraCLI(cmd.Cmd):
             self.issue_manager.display_issue(issue)
         else:
             self.console.print(f"No issue found with key {line}. Treating as search string.", style="yellow")
-            issues = self.issue_manager.search_issues(f'text ~ "{line}"')
-            if issues:
-                for issue in issues:
-                    self.console.print(f"{issue.key}: {issue.fields.summary}")
-            else:
-                self.console.print("No issues found matching the query.", style="yellow")
+            self.issue_manager.search_issues(f'text ~ "{line}"')
 
     def completedefault(self, text, line, begidx, endidx):
         """Provide tab completion for status updates."""

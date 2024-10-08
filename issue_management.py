@@ -105,7 +105,8 @@ class IssueManager:
                 created_date = self.format_date(comment.created)
                 title = Text()
                 title.append(comment.author.displayName, style=f"bold {author_color}")
-                title.append(f" - {created_date}", style="italic")
+                title.append(" - ", style="bold")
+                title.append(created_date, style="italic")
                 
                 panel = Panel(
                     comment_text,

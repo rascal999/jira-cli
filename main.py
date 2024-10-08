@@ -323,6 +323,9 @@ def main():
 
     cli = JiraCLI(issue_manager)
     
+    # Show help message on startup
+    cli.do_h(None)
+    
     if args.ticket:
         cli.onecmd(args.ticket)
     else:

@@ -17,7 +17,7 @@ def show_help():
         ("/recent", "Show recently updated issues"),
         ("/search <query>", "Search for issues using JQL"),
         ("/delete <issue_key>", "Delete a ticket"),
-        ("/tree [issue_key]", "Display issue tree starting from current or specified ticket"),
+        ("/tree \[issue_key]", "Display issue tree starting from current or specified ticket"),
         ("/new", "Create a new ticket under the current ticket or a new epic"),
         ("/link <issue_key>", "Link current ticket to specified ticket or unlink if already linked"),
         ("/epics", "List all epics reported by you"),
@@ -26,8 +26,8 @@ def show_help():
         ("/parent", "Change focus to parent ticket and display its details"),
         ("/ai <question>", "Ask a question to ChatGPT"),
         ("/rename <new_summary>", "Rename the summary of the currently focused ticket"),
-        ("/grab [issue_key]", "Copy URL of current or specified issue to clipboard"),
-        ("/open [issue_key]", "Open the current or specified ticket in the browser (use BROWSER env var to specify browser)"),
+        ("/grab \[issue_key]", "Copy URL of current or specified issue to clipboard"),
+        ("/open \[issue_key]", "Open the current or specified ticket in the browser (use BROWSER env var to specify browser)"),
     ]
 
     for command, description in commands:

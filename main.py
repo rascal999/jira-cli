@@ -13,6 +13,7 @@ from rich.panel import Panel
 from rich.text import Text
 import os
 from commands import clear, grab_url, delete, help, quit, comment, search, recent, tree, new, link, epics, update, parent, ai, rename, open_browser  # Add this import at the top of the file
+from dotenv import load_dotenv
 
 # Initialize colorama
 init(autoreset=True)
@@ -29,7 +30,13 @@ class JiraCLI(cmd.Cmd):
 
         # Initialize OpenAI client
         openai.api_key = os.getenv("OPENAI_API_KEY")
-        self.openai_client = openai
+        self.openai_model = os.getenv("OPENAI_MODEL", "gpt-3.5-turbo")  # Default to gpt-3.5-turbo if not specified
+        if hasattr(openai, 'OpenAI'):
+            # New version of OpenAI library
+            self.openai_client = openai.OpenAI()
+        else:
+            # Old version of OpenAI library
+            self.openai_client = openai
 
     def load_history(self):
         if os.path.exists(self.history_file):
@@ -157,7 +164,7 @@ class JiraCLI(cmd.Cmd):
 
     def do_ai(self, arg):
         """Ask a question to ChatGPT."""
-        ai.ask_chatgpt(self.openai_client, arg)
+        ai.ask_ai(self.openai_client, arg)
 
     def do_rename(self, arg):
         """Rename the summary of the currently focused ticket."""
@@ -274,6 +281,7 @@ class JiraCLI(cmd.Cmd):
         os.system('cls' if os.name == 'nt' else 'clear')
 
 def main():
+    load_dotenv()  # This line should be at the beginning of the main function
     parser = argparse.ArgumentParser(description="Jira CLI Tool")
     parser.add_argument("ticket", nargs="?", help="Jira ticket key (e.g., EXAMPLE-123)")
     args = parser.parse_args()

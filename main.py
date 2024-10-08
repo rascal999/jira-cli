@@ -12,6 +12,8 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.text import Text
 import os
+from commands import clear, grab_url, delete, help, quit, comment, search, recent, tree, new, link, epics, update, parent, ai, rename, open_browser  # Add this import at the top of the file
+from dotenv import load_dotenv
 
 # Initialize colorama
 init(autoreset=True)
@@ -25,6 +27,16 @@ class JiraCLI(cmd.Cmd):
         self.update_prompt()
         self.history_file = os.path.expanduser('~/.jira_cli_history')
         self.load_history()
+
+        # Initialize OpenAI client
+        openai.api_key = os.getenv("OPENAI_API_KEY")
+        self.openai_model = os.getenv("OPENAI_MODEL", "gpt-3.5-turbo")  # Default to gpt-3.5-turbo if not specified
+        if hasattr(openai, 'OpenAI'):
+            # New version of OpenAI library
+            self.openai_client = openai.OpenAI()
+        else:
+            # Old version of OpenAI library
+            self.openai_client = openai
 
     def load_history(self):
         if os.path.exists(self.history_file):
@@ -75,177 +87,101 @@ class JiraCLI(cmd.Cmd):
                 return '@' + suggestions[state]
         return None
 
-    def do_h(self, arg):
+    def do_help(self, arg):
         """Show help message."""
-        console = Console()
-        
-        help_text = Text()
-        help_text.append("Jira CLI Help\n\n", style="bold")
-        help_text.append("Available Commands:\n\n", style="bold underline")
-        
-        commands = [
-            ("/h", "Show this help message."),
-            ("/q", "Quit the program."),
-            ("/c", "Add a comment to the last ticket. Usage: /c Your comment here."),
-            ("/s", "Enter JQL mode to execute a JQL query."),
-            ("/d TICKET", "Delete a ticket. Usage: /d TICKET_ID"),
-            ("/r", "Display top 10 recently updated tickets reported by you."),
-            ("/t [TICKET]", "Display issue tree starting from current or specified ticket."),
-            ("/n", "Create a new ticket under the current ticket (epic or task), or create a new epic if no ticket is focused."),
-            ("/l", "Link current ticket to specified ticket or unlink if already linked."),
-            ("/e", "List all epics reported by you."),
-            ("/x", "Clear the current focused ticket."),
-            ("/u", "Update the description of the currently focused ticket."),
-            ("/p", "Change focus to parent ticket and display its details."),
-            ("/i", "Ask a question to ChatGPT. Usage: /i Your question here."),
-            ("/a SUMMARY", "Rename the summary of the currently focused ticket. Usage: /a New summary here.")
-        ]
-        
-        for cmd, desc in commands:
-            help_text.append(f"{cmd}", style="cyan bold")
-            help_text.append(f" - {desc}\n")
-        
-        help_text.append("\n", style="bold")
-        help_text.append("Type a ticket ID or search string to display ticket information or search results.\n\n", style="italic")
-        help_text.append("When a ticket is focused, press [Tab] to display possible statuses above the prompt. ", style="yellow")
-        help_text.append("Type the status name and press [Enter] to update the ticket to the selected status.", style="yellow")
-        
-        console.print(help_text)
+        help.show_help()
 
-    def do_q(self, arg):
+    def do_quit(self, arg):
         """Quit the program."""
-        print("Goodbye!")
-        return True
+        return quit.quit_program()
 
-    def do_c(self, arg):
+    def do_comment(self, arg):
         """Add a comment to the current ticket."""
-        if self.current_ticket:
-            self.issue_manager.add_comment(self.current_ticket, arg)
-        else:
-            self.console.print("No ticket currently focused. Use a ticket ID first.", style="yellow")
+        comment.add_comment(self.issue_manager, self.current_ticket, arg)
 
-    def default(self, line):
-        """Handle ticket ID, search string input, or commands."""
-        if line.startswith('/'):
-            cmd = line[1:]  # Remove the leading '/'
-            if hasattr(self, 'do_' + cmd):
-                return getattr(self, 'do_' + cmd)(None)
-            else:
-                self.console.print(f"Unknown command: {line}", style="yellow")
-                self.console.print("Type '/h' for help.", style="yellow")
-                return
-
-        issue = self.issue_manager.fetch_issue(line)
-        if issue:
-            self.current_ticket = line
-            self.update_prompt()
-            self.issue_manager.display_issue(issue)
-        else:
-            self.console.print(f"No issue found with key {line}. Treating as search string.", style="yellow")
-            self.issue_manager.search_issues(f'text ~ "{line}"')
-
-    def do_r(self, arg):
+    def do_recent(self, arg):
         """Show recently updated issues."""
         self.issue_manager.get_recent_issues()
-        return False  # Indicate that we want to continue the command loop
 
-    def do_s(self, arg):
+    def do_search(self, arg):
         """Search for issues using JQL."""
-        if not arg:
-            print("Please provide a JQL query.")
-            return
-        self.issue_manager.search_issues(arg)
+        search.search_issues(self.issue_manager, arg)
 
-    def do_d(self, arg):
+    def do_delete(self, arg):
         """Delete a ticket."""
-        if not arg:
-            self.console.print("Please provide a ticket ID to delete.", style="yellow")
-            return
+        if delete.delete_issue(self.issue_manager, self.current_ticket, arg):
+            self.current_ticket = None
+            self.update_prompt()
+            self.console.print("Unfocused deleted ticket.", style="green")
 
-        deleted = self.issue_manager.delete_issue(arg)
-        if deleted:
-            if self.current_ticket == arg:
-                self.current_ticket = None
-                self.update_prompt()
-                self.console.print("Unfocused deleted ticket.", style="green")
-
-    def do_t(self, arg):
+    def do_tree(self, arg):
         """Display issue tree starting from current or specified ticket."""
-        ticket = arg if arg else self.current_ticket
-        if ticket:
-            self.issue_manager.display_issue_tree(ticket)
-        else:
-            self.console.print("No ticket specified or currently focused.", style="yellow")
+        tree.display_issue_tree(self.issue_manager, self.current_ticket, arg)
 
-    def do_n(self, arg):
+    def do_new(self, arg):
         """Create a new ticket under the current ticket (epic or task), or create a new epic if no ticket is focused."""
         parent = self.current_ticket
-        new_issue = self.issue_manager.create_new_issue(parent)
+        new_issue = new.create_new_ticket(self.issue_manager, parent)
         if new_issue:
             self.current_ticket = new_issue.key
-            self.update_prompt()
-            self.issue_manager.display_issue(new_issue)
+            self.update_prompt(new_issue)
 
-    def do_l(self, arg):
+    def do_link(self, arg):
         """Link current ticket to specified ticket or unlink if already linked."""
-        if self.current_ticket:
-            if arg:
-                self.issue_manager.link_issues(self.current_ticket, arg)
-            else:
-                self.console.print("Please provide a ticket ID to link to or unlink from.", style="yellow")
-        else:
-            self.console.print("No ticket currently focused. Use a ticket ID first.", style="yellow")
+        link.link_issues(self.issue_manager, self.current_ticket, arg)
 
-    def do_e(self, arg):
+    def do_epics(self, arg):
         """List all epics reported by you."""
-        self.issue_manager.get_user_epics()
+        epics.list_user_epics(self.issue_manager)
 
-    def do_x(self, arg):
+    def do_clear(self, arg):
         """Clear the current focused ticket."""
-        self.current_ticket = None
-        self.update_prompt()
-        self.clear_screen()
-        self.console.print("Cleared current ticket focus.", style="green")
+        clear.clear_focus(self)
 
-    def do_u(self, arg):
-        """Update the description of the currently focused ticket."""
-        if self.current_ticket:
-            new_description = input("Enter new description: ")
-            self.issue_manager.update_issue_description(self.current_ticket, new_description)
+    def do_update(self, arg):
+        """Update the description of the current ticket."""
+        if not self.current_ticket:
+            self.console.print("No ticket currently selected. Use /view <issue_key> to select a ticket.", style="yellow")
+            return
+
+        update.update_description(self.issue_manager, self.current_ticket)
+        
+        # Fetch the updated ticket
+        updated_issue = self.issue_manager.fetch_issue(self.current_ticket)
+        
+        if updated_issue:
+            # Display the updated issue
+            self.issue_manager.display_issue(updated_issue)
+            
+            # Update the prompt with the latest information
+            self.update_prompt(updated_issue)
         else:
-            print("No ticket currently focused. Use a ticket ID first.")
+            self.console.print(f"Failed to fetch updated ticket {self.current_ticket}", style="red")
 
-    def do_p(self, arg):
+    def do_parent(self, arg):
         """Change focus to parent ticket and display its details."""
-        if self.current_ticket:
-            parent = self.issue_manager.get_parent_issue(self.current_ticket)
-            if parent:
-                self.current_ticket = parent.key
-                try:
-                    self.issue_manager.display_issue(parent)
-                except AttributeError as e:
-                    self.console.print(f"Error displaying parent issue: {e}", style="red")
-                    self.console.print("The parent issue may not have all expected fields.", style="yellow")
-                    self.console.print(f"Parent issue key: {parent.key}", style="cyan")
-            else:
-                self.console.print("No parent ticket found.", style="yellow")
-        else:
-            self.console.print("No ticket currently focused. Use a ticket ID first.", style="yellow")
+        parent.focus_on_parent(self.issue_manager, self)
 
-    def do_i(self, arg):
+    def do_ai(self, arg):
         """Ask a question to ChatGPT."""
-        response = self.openai_client.chat.completions.create(
-            model="gpt-3.5-turbo",
-            messages=[{"role": "user", "content": arg}]
-        )
-        print(response.choices[0].message.content)
+        ai.ask_ai(self.openai_client, arg)
 
-    def do_a(self, arg):
+    def do_rename(self, arg):
         """Rename the summary of the currently focused ticket."""
-        if self.current_ticket:
-            self.issue_manager.update_issue_summary(self.current_ticket, arg)
-        else:
-            print("No ticket currently focused. Use a ticket ID first.")
+        rename.rename_issue(self.issue_manager, self.current_ticket, arg)
+
+    def do_grab(self, arg):
+        """Copy URL of current or specified issue to clipboard."""
+        grab_url.grab_url(self.issue_manager, self.current_ticket, arg)
+
+    def do_open(self, arg):
+        """Open the current or specified ticket in the default web browser."""
+        open_browser.open_in_browser(self.issue_manager, self.current_ticket, arg)
+
+    def do_assign(self, arg):
+        """Assign the current ticket or a specified ticket to the authenticated user."""
+        from commands.assign import assign_issue
+        assign_issue(self.issue_manager, self.current_ticket, arg)
 
     def default(self, line):
         """Handle ticket ID, search string input, or commands."""
@@ -295,7 +231,7 @@ class JiraCLI(cmd.Cmd):
     def emptyline(self):
         """Handle empty line input."""
         if self.prompt == "Jira> ":
-            self.do_h(None)
+            self.do_help(None)  # Changed from self.do_h(None) to self.do_help(None)
         elif self.current_ticket:
             issue = self.issue_manager.fetch_issue(self.current_ticket)
             if issue:
@@ -306,7 +242,44 @@ class JiraCLI(cmd.Cmd):
     def precmd(self, line):
         """Preprocess the input line."""
         if line.startswith('/'):
-            return line[1:]  # Remove the leading '/'
+            # Handle the case where only '/' is entered
+            if line == '/':
+                return 'help'  # Treat a single '/' as a request for help
+            
+            # Split the line into command and arguments
+            parts = line[1:].split(maxsplit=1)
+            if not parts:  # If parts is empty after splitting
+                return 'help'  # Treat this as a request for help too
+            
+            command = parts[0]
+            arg = parts[1] if len(parts) > 1 else ''
+            
+            # Map short commands to full commands
+            command_map = {
+                'h': 'help',
+                'q': 'quit',
+                'c': 'comment',
+                'r': 'recent',
+                's': 'search',
+                'd': 'delete',
+                't': 'tree',
+                'n': 'new',
+                'l': 'link',
+                'e': 'epics',
+                'x': 'clear',
+                'u': 'update',
+                'p': 'parent',
+                'i': 'ai',
+                'a': 'rename',
+                'g': 'grab',
+                'o': 'open',
+                'as': 'assign'  # Add this line for the assign command
+            }
+            
+            # Use the full command if available, otherwise keep the original
+            command = command_map.get(command, command)
+            
+            return f"{command} {arg}".strip()
         return line
 
     def clear_screen(self):
@@ -314,23 +287,23 @@ class JiraCLI(cmd.Cmd):
         os.system('cls' if os.name == 'nt' else 'clear')
 
 def main():
+    load_dotenv()  # This line should be at the beginning of the main function
     parser = argparse.ArgumentParser(description="Jira CLI Tool")
     parser.add_argument("ticket", nargs="?", help="Jira ticket key (e.g., EXAMPLE-123)")
     args = parser.parse_args()
 
     jira_client = get_jira_client()
     issue_manager = IssueManager(jira_client)
-
     cli = JiraCLI(issue_manager)
-    
+
     # Show help message on startup
-    cli.do_h(None)
-    
+    cli.do_help(None)  # Changed from cli.do_h(None) to cli.do_help(None)
+
     if args.ticket:
         cli.onecmd(args.ticket)
     else:
         print("No initial ticket or search string provided. Starting interactive shell.")
-        print("Type '/h' for help.")
+        print("Type '/help' for help.")  # Updated to use '/help' instead of '/h'
 
     try:
         cli.cmdloop()

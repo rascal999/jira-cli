@@ -23,6 +23,15 @@ class JiraCLI(cmd.Cmd):
         self.current_ticket = None
         self.console = Console()
         self.update_prompt()
+        self.history_file = os.path.expanduser('~/.jira_cli_history')
+        self.load_history()
+
+    def load_history(self):
+        if os.path.exists(self.history_file):
+            readline.read_history_file(self.history_file)
+
+    def save_history(self):
+        readline.write_history_file(self.history_file)
 
     def update_prompt(self, issue=None):
         if self.current_ticket:
@@ -277,6 +286,12 @@ class JiraCLI(cmd.Cmd):
         """Handle empty line input."""
         if self.prompt == "Jira> ":
             self.do_h(None)
+        elif self.current_ticket:
+            issue = self.issue_manager.fetch_issue(self.current_ticket)
+            if issue:
+                self.issue_manager.display_issue(issue)
+            else:
+                self.console.print(f"Unable to fetch details for {self.current_ticket}", style="yellow")
 
     def precmd(self, line):
         """Preprocess the input line."""
@@ -304,7 +319,12 @@ def main():
         print("No initial ticket or search string provided. Starting interactive shell.")
         print("Type '/h' for help.")
 
-    cli.cmdloop()
+    try:
+        cli.cmdloop()
+    except KeyboardInterrupt:
+        print("\nGoodbye!")
+    finally:
+        cli.save_history()
 
 if __name__ == "__main__":
     main()

@@ -63,6 +63,33 @@ class IssueManager:
         panel = Panel(issue_text, title=f"Issue Details: {issue.key}", expand=False, border_style="cyan")
         self.console.print(panel)
 
+        # Display parent ticket
+        if hasattr(issue.fields, 'parent'):
+            parent = issue.fields.parent
+            self.console.print(f"\nParent: {parent.key} - {parent.fields.summary}", style="cyan")
+
+        # Display linked tickets
+        links = issue.fields.issuelinks
+        if links:
+            self.console.print("\nLinked Issues:", style="cyan")
+            for link in links:
+                if hasattr(link, 'outwardIssue'):
+                    linked_issue = link.outwardIssue
+                    link_type = link.type.outward
+                elif hasattr(link, 'inwardIssue'):
+                    linked_issue = link.inwardIssue
+                    link_type = link.type.inward
+                else:
+                    continue
+                self.console.print(f"  {link_type}: {linked_issue.key} - {linked_issue.fields.summary}")
+
+        # Display sub-tasks
+        subtasks = issue.fields.subtasks
+        if subtasks:
+            self.console.print("\nSub-tasks:", style="cyan")
+            for subtask in subtasks:
+                self.console.print(f"  {subtask.key} - {subtask.fields.summary}")
+
         # Display comments
         self.display_comments(issue.key)
 

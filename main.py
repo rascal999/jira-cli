@@ -149,7 +149,16 @@ class JiraCLI(cmd.Cmd):
 
     def do_d(self, arg):
         """Delete a ticket."""
-        self.issue_manager.delete_issue(arg)
+        if not arg:
+            self.console.print("Please provide a ticket ID to delete.", style="yellow")
+            return
+
+        deleted = self.issue_manager.delete_issue(arg)
+        if deleted:
+            if self.current_ticket == arg:
+                self.current_ticket = None
+                self.update_prompt()
+                self.console.print("Unfocused deleted ticket.", style="green")
 
     def do_t(self, arg):
         """Display issue tree starting from current or specified ticket."""
@@ -162,7 +171,11 @@ class JiraCLI(cmd.Cmd):
     def do_n(self, arg):
         """Create a new ticket under the current ticket (epic or task), or create a new epic if no ticket is focused."""
         parent = self.current_ticket
-        self.issue_manager.create_new_issue(parent)
+        new_issue = self.issue_manager.create_new_issue(parent)
+        if new_issue:
+            self.current_ticket = new_issue.key
+            self.update_prompt()
+            self.issue_manager.display_issue(new_issue)
 
     def do_l(self, arg):
         """Link current ticket to specified ticket as 'Relates to'."""
@@ -262,7 +275,8 @@ class JiraCLI(cmd.Cmd):
 
     def emptyline(self):
         """Handle empty line input."""
-        pass  # Do nothing on empty line
+        if self.prompt == "Jira> ":
+            self.do_h(None)
 
     def precmd(self, line):
         """Preprocess the input line."""

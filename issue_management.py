@@ -162,14 +162,13 @@ class IssueManager:
 
     def get_assignee_emojis(self, assignee):
         emojis = [
-            "", "", "", "", "", "", "🎯", "", "", "️", "⌨️", "️", "",
             "✏️", "📌", "🏆", "💎", "⚖️", "🔨", "🔗", "🧰", "🔦", "🔒", "🌟", "🌈", "📱",
-            "☎️", "🔋", "💼", "📅", "🕒", "📬", "🔔", "🎵", "📎", "✂️", "🗑️", "🧮", "🖋️",
+            "☎️", "🔋", "💼", "📅", "📬", "🔔", "🎵", "📎", "✂️", "🧮", "🖋️",
             "📘", "🗝️", "📢", "🔊", "💬", "👁️", "🔆", "⚡", "💧", "☁️", "⏱️", "🧲", "🔬",
             "🧩", "🧪", "🗂️", "🏹", "⭐", "🌊", "🗻", "🏔️", "🏕️", "🏞️", "🌄", "🌅", "🏙️",
             "🚦", "🚥", "🔭", "🧬", "🔮", "🎨", "🧵", "🧶", "🧱", "🦺", "🥽", "🧳", "🌡️",
             "🧪", "🧫", "🧬", "🔭", "🔬", "🕯️", "🪔", "🧯", "🛡️", "🎭", "🎨", "🧩", "♟️",
-            "🎲", "🔖", "🏷️", "🗳️", "🗃️", "🗄️", "🗑️", "🔏", "🔐", "🔑", "🗝️", "🪓", "🔨"
+            "🎲", "🔖", "🏷️", "🗳️", "🗃️", "🗄️", "🔏", "🔐", "🔑", "🗝️", "🪓", "🔨"
         ]
         
         seed = sum(ord(c) for c in assignee)
@@ -313,10 +312,10 @@ class IssueManager:
                 issue_dict['parent'] = {'key': parent}
 
             new_issue = self.jira.create_issue(fields=issue_dict)
-            print(f"New issue created: {new_issue.key}")
-            return new_issue.key
-        except JIRAError as e:
-            print(f"Error creating new issue: {str(e)}")
+            self.console.print(f"New issue created: {new_issue.key}", style="green")
+            return new_issue
+        except Exception as e:
+            self.console.print(f"Error creating issue: {str(e)}", style="red")
             return None
 
     def link_issues(self, from_issue, to_issue, link_type):
@@ -479,3 +478,13 @@ class IssueManager:
         formatted_text.append(body[last_end:])
         
         return formatted_text
+
+    def delete_issue(self, issue_key):
+        try:
+            issue = self.jira.issue(issue_key)
+            issue.delete()
+            self.console.print(f"Issue {issue_key} has been deleted successfully.", style="green")
+            return True
+        except Exception as e:
+            self.console.print(f"Error deleting issue {issue_key}: {str(e)}", style="red")
+            return False

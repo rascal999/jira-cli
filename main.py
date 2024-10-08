@@ -275,6 +275,7 @@ class JiraCLI(cmd.Cmd):
             available_statuses = self.issue_manager.get_available_statuses(self.current_ticket)
             if line in available_statuses:
                 self.issue_manager.update_issue_status(self.current_ticket, line)
+        print()
         return stop
 
     def focus_on_issue(self, issue):

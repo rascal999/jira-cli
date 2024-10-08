@@ -70,6 +70,7 @@ class IssueManager:
         comments = self.fetch_comments(issue_key)
         if comments:
             self.console.print("\nComments:", style="bold")
+            max_width = min(110, max(len(comment.body) for comment in comments))
             for comment in comments:
                 author_color = self.get_color_for_user(comment.author.displayName)
                 comment_text = self.format_comment_body(comment.body)
@@ -85,6 +86,7 @@ class IssueManager:
                     title_align="left",
                     border_style=author_color,
                     expand=False,
+                    width=max_width,
                     box=box.ROUNDED
                 )
                 self.console.print(panel)
@@ -160,22 +162,19 @@ class IssueManager:
 
     def get_assignee_emojis(self, assignee):
         emojis = [
-            "🔴", "🟠", "🟡", "🟢", "🔵", "🟣", "⚫", "⚪", "🟤", "🔺", "🔻", "💠", "🔘", "🔳", "🔲",
-            "✅", "❎", "❌", "➕", "➖", "➗", "➰", "➿", "〽", "✳", "✴", "❇", "‼", "⁉", "❓",
-            "❔", "❕", "❗", "〰", "©", "®", "™", "Ⓜ", "♈", "♉", "♊", "♋", "♌", "♍", "♎",
-            "♏", "♐", "♑", "♒", "♓", "⛎", "♀", "♂", "♠", "♣", "♥", "♦", "☀", "☁", "☂",
-            "☃", "☄", "★", "☆", "☎", "☑", "☮", "☯", "☢", "☣", "☦", "☪", "☫", "☬", "☭",
-            "☽", "☾", "♔", "♕", "♖", "♗", "♘", "♙", "♚", "♛", "♜", "♝", "♞", "♟", "♨",
-            "♩", "♪", "♫", "♬", "♭", "♮", "♯", "⚐", "⚑", "⚒", "⚓", "⚔", "⚕", "⚖", "⚗",
-            "⚙", "⚛", "⚜", "⚠", "⚡", "⚰", "⚱", "⚽", "⚾", "⛄", "⛅", "⛈", "⛏", "⛑"
+            "", "", "", "", "", "", "🎯", "", "", "️", "⌨️", "️", "",
+            "✏️", "📌", "🏆", "💎", "⚖️", "🔨", "🔗", "🧰", "🔦", "🔒", "🌟", "🌈", "📱",
+            "☎️", "🔋", "💼", "📅", "🕒", "📬", "🔔", "🎵", "📎", "✂️", "🗑️", "🧮", "🖋️",
+            "📘", "🗝️", "📢", "🔊", "💬", "👁️", "🔆", "⚡", "💧", "☁️", "⏱️", "🧲", "🔬",
+            "🧩", "🧪", "🗂️", "🏹", "⭐", "🌊", "🗻", "🏔️", "🏕️", "🏞️", "🌄", "🌅", "🏙️",
+            "🚦", "🚥", "🔭", "🧬", "🔮", "🎨", "🧵", "🧶", "🧱", "🦺", "🥽", "🧳", "🌡️",
+            "🧪", "🧫", "🧬", "🔭", "🔬", "🕯️", "🪔", "🧯", "🛡️", "🎭", "🎨", "🧩", "♟️",
+            "🎲", "🔖", "🏷️", "🗳️", "🗃️", "🗄️", "🗑️", "🔏", "🔐", "🔑", "🗝️", "🪓", "🔨"
         ]
         
-        # Use the assignee string to generate a seed for consistent emoji selection
         seed = sum(ord(c) for c in assignee)
-        
-        # Select two different emojis
         first_emoji = emojis[seed % len(emojis)]
-        second_emoji = emojis[(seed * 31) % len(emojis)]  # Use prime number 31 for better distribution
+        second_emoji = emojis[(seed * 31) % len(emojis)]
         
         return (first_emoji, second_emoji)
 
@@ -201,6 +200,10 @@ class IssueManager:
             # Get emojis for the assignee
             first_emoji, second_emoji = self.get_assignee_emojis(assignee)
             
+            # Adjust spacing based on emoji width
+            first_emoji_space = " " if self.get_emoji_width(first_emoji) == 1 else ""
+            second_emoji_space = " " if self.get_emoji_width(second_emoji) == 1 else ""
+            
             # Color-code the columns
             project_color = self.get_color_for_string(project, colors)
             type_color = self.get_color_for_string(issue_type, colors)
@@ -211,7 +214,7 @@ class IssueManager:
             key_text = Text(key, style=project_color)
             type_text = Text(issue_type, style=type_color)
             status_text = Text(status, style=status_color)
-            assignee_text = Text(f"{first_emoji} {assignee} {second_emoji}", style=assignee_color)
+            assignee_text = Text(f"{first_emoji}{first_emoji_space} {assignee} {second_emoji_space}{second_emoji}", style=assignee_color)
 
             table.add_row(key_text, type_text, summary, status_text, assignee_text)
 

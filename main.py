@@ -125,7 +125,7 @@ class JiraCLI(cmd.Cmd):
 
     def do_epics(self, arg):
         """List all epics reported by you."""
-        epics.get_user_epics(self.issue_manager)
+        epics.list_user_epics(self.issue_manager)
 
     def do_clear(self, arg):
         """Clear the current focused ticket."""

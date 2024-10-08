@@ -178,6 +178,11 @@ class JiraCLI(cmd.Cmd):
         """Open the current or specified ticket in the default web browser."""
         open_browser.open_in_browser(self.issue_manager, self.current_ticket, arg)
 
+    def do_assign(self, arg):
+        """Assign the current ticket or a specified ticket to the authenticated user."""
+        from commands.assign import assign_issue
+        assign_issue(self.issue_manager, self.current_ticket, arg)
+
     def default(self, line):
         """Handle ticket ID, search string input, or commands."""
         if line.startswith('/'):
@@ -267,7 +272,8 @@ class JiraCLI(cmd.Cmd):
                 'i': 'ai',
                 'a': 'rename',
                 'g': 'grab',
-                'o': 'open'
+                'o': 'open',
+                'as': 'assign'  # Add this line for the assign command
             }
             
             # Use the full command if available, otherwise keep the original

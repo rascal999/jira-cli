@@ -71,6 +71,7 @@ class JiraCLI(cmd.Cmd):
         console = Console()
         
         help_text = Text()
+        help_text.append("Jira CLI Help\n\n", style="bold")
         help_text.append("Available Commands:\n\n", style="bold underline")
         
         commands = [
@@ -100,8 +101,7 @@ class JiraCLI(cmd.Cmd):
         help_text.append("When a ticket is focused, press [Tab] to display possible statuses above the prompt. ", style="yellow")
         help_text.append("Type the status name and press [Enter] to update the ticket to the selected status.", style="yellow")
         
-        panel = Panel(help_text, title="Jira CLI Help", expand=False, border_style="green")
-        console.print(panel)
+        console.print(help_text)
 
     def do_q(self, arg):
         """Quit the program."""

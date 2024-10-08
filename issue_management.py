@@ -8,6 +8,7 @@ from jira import JIRA, JIRAError
 from rich import box
 from datetime import datetime
 import re
+import unicodedata
 
 class IssueManager:
     def __init__(self, jira_client):
@@ -87,7 +88,6 @@ class IssueManager:
                     box=box.ROUNDED
                 )
                 self.console.print(panel)
-                self.console.print()  # Add a blank line between comments
         else:
             self.console.print("No comments found for this issue.", style="yellow")
 
@@ -149,48 +149,73 @@ class IssueManager:
         # Use the first 6 characters of the hash as an RGB color
         return f"#{hash_hex[:6]}"
 
-    def get_color_for_string(self, string):
-        # Generate a hash of the string
-        hash_object = hashlib.md5(string.encode())
-        hash_hex = hash_object.hexdigest()
+    def get_color_for_string(self, s, color_list):
+        # Generate a hash value from the string
+        hash_value = sum(ord(c) for c in s)
+        # Use the hash to select a color from the list
+        return color_list[hash_value % len(color_list)]
+
+    def get_emoji_width(self, emoji):
+        return sum(2 if unicodedata.east_asian_width(c) in ('F', 'W') else 1 for c in emoji)
+
+    def get_assignee_emojis(self, assignee):
+        emojis = [
+            "🔴", "🟠", "🟡", "🟢", "🔵", "🟣", "⚫", "⚪", "🟤", "🔺", "🔻", "💠", "🔘", "🔳", "🔲",
+            "✅", "❎", "❌", "➕", "➖", "➗", "➰", "➿", "〽", "✳", "✴", "❇", "‼", "⁉", "❓",
+            "❔", "❕", "❗", "〰", "©", "®", "™", "Ⓜ", "♈", "♉", "♊", "♋", "♌", "♍", "♎",
+            "♏", "♐", "♑", "♒", "♓", "⛎", "♀", "♂", "♠", "♣", "♥", "♦", "☀", "☁", "☂",
+            "☃", "☄", "★", "☆", "☎", "☑", "☮", "☯", "☢", "☣", "☦", "☪", "☫", "☬", "☭",
+            "☽", "☾", "♔", "♕", "♖", "♗", "♘", "♙", "♚", "♛", "♜", "♝", "♞", "♟", "♨",
+            "♩", "♪", "♫", "♬", "♭", "♮", "♯", "⚐", "⚑", "⚒", "⚓", "⚔", "⚕", "⚖", "⚗",
+            "⚙", "⚛", "⚜", "⚠", "⚡", "⚰", "⚱", "⚽", "⚾", "⛄", "⛅", "⛈", "⛏", "⛑"
+        ]
         
-        # Use the first 6 characters of the hash as an RGB color
-        return f"#{hash_hex[:6]}"
+        # Use the assignee string to generate a seed for consistent emoji selection
+        seed = sum(ord(c) for c in assignee)
+        
+        # Select two different emojis
+        first_emoji = emojis[seed % len(emojis)]
+        second_emoji = emojis[(seed * 31) % len(emojis)]  # Use prime number 31 for better distribution
+        
+        return (first_emoji, second_emoji)
 
     def display_issues_table(self, issues, title):
-        table = Table(title=title)
-        table.add_column("Key", style="cyan", no_wrap=True)
-        table.add_column("Type", style="magenta")
+        table = Table(title=title, show_edge=False, expand=False)
+        table.add_column("Key", no_wrap=True)
+        table.add_column("Type")
         table.add_column("Summary", style="green")
-        table.add_column("Status", style="yellow")
-        table.add_column("Assignee", style="blue")
+        table.add_column("Status")
+        table.add_column("Assignee")
+
+        # Define color list
+        colors = ["cyan", "blue", "magenta", "green", "yellow", "red", "purple", "orange"]
 
         for issue in issues:
-            # Color for Key (based on project)
-            project_key = re.split('-', issue.key)[0]
-            key_color = self.get_color_for_string(project_key)
-            key_text = Text(issue.key, style=key_color)
+            key = issue.key
+            project = key.split('-')[0]  # Extract project string from key
+            issue_type = issue.fields.issuetype.name
+            summary = issue.fields.summary
+            status = issue.fields.status.name
+            assignee = issue.fields.assignee.displayName if issue.fields.assignee else "Unassigned"
 
-            # Colors for Type, Status, and Assignee
-            type_color = self.get_color_for_string(issue.fields.issuetype.name)
-            status_color = self.get_color_for_string(issue.fields.status.name)
-            assignee = getattr(issue.fields.assignee, 'displayName', 'Unassigned')
-            assignee_color = self.get_color_for_string(assignee)
-
-            type_text = Text(issue.fields.issuetype.name, style=type_color)
-            status_text = Text(f"[{issue.fields.status.name}]", style=status_color)
-            assignee_text = Text(assignee, style=assignee_color)
+            # Get emojis for the assignee
+            first_emoji, second_emoji = self.get_assignee_emojis(assignee)
             
-            table.add_row(
-                key_text,
-                type_text,
-                issue.fields.summary,
-                status_text,
-                assignee_text
-            )
+            # Color-code the columns
+            project_color = self.get_color_for_string(project, colors)
+            type_color = self.get_color_for_string(issue_type, colors)
+            status_color = self.get_color_for_string(status, colors)
+            assignee_color = self.get_color_for_string(assignee, colors)
 
-        panel = Panel(table, expand=False, border_style="blue")
-        self.console.print(panel)
+            # Create rich Text objects for colored and formatted display
+            key_text = Text(key, style=project_color)
+            type_text = Text(issue_type, style=type_color)
+            status_text = Text(status, style=status_color)
+            assignee_text = Text(f"{first_emoji} {assignee} {second_emoji}", style=assignee_color)
+
+            table.add_row(key_text, type_text, summary, status_text, assignee_text)
+
+        self.console.print(table)
 
     def get_user_epics(self):
         """List all epics reported by the current user."""

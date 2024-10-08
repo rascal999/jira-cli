@@ -126,8 +126,6 @@ class IssueManager:
                     box=box.ROUNDED
                 )
                 self.console.print(panel)
-        else:
-            self.console.print("No comments found for this issue.", style="yellow")
 
     def get_project_color(self, project_key):
         if project_key not in self.project_colors:

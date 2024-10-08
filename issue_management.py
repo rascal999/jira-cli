@@ -31,67 +31,75 @@ class IssueManager:
         }
 
     def display_issue(self, issue):
-        issue_text = Text()
-        issue_text.append(f"{issue.key}: ", style="cyan bold")
-        issue_text.append(f"{issue.fields.summary}\n\n", style="white bold")
+        try:
+            issue_text = Text()
+            issue_text.append(f"{issue.key}: ", style="cyan bold")
+            issue_text.append(f"{issue.fields.summary}\n\n", style="white bold")
 
-        issue_text.append("Status: ", style="blue")
-        issue_text.append(f"{issue.fields.status.name}\n", style=self.get_status_style(issue.fields.status.name))
+            issue_text.append("Status: ", style="blue")
+            issue_text.append(f"{getattr(issue.fields.status, 'name', 'Unknown')}\n", style=self.get_status_style(getattr(issue.fields.status, 'name', 'Unknown')))
 
-        issue_text.append("Type: ", style="blue")
-        issue_text.append(f"{issue.fields.issuetype.name}\n", style="magenta")
+            issue_text.append("Type: ", style="blue")
+            issue_text.append(f"{getattr(issue.fields.issuetype, 'name', 'Unknown')}\n", style="magenta")
 
-        issue_text.append("Priority: ", style="blue")
-        issue_text.append(f"{issue.fields.priority.name}\n", style="yellow")
+            issue_text.append("Priority: ", style="blue")
+            issue_text.append(f"{getattr(issue.fields.priority, 'name', 'Unknown')}\n", style="yellow")
 
-        issue_text.append("Assignee: ", style="blue")
-        assignee = issue.fields.assignee.displayName if issue.fields.assignee else "Unassigned"
-        issue_text.append(f"{assignee}\n", style="green")
+            issue_text.append("Assignee: ", style="blue")
+            assignee = getattr(issue.fields, 'assignee', None)
+            assignee_name = assignee.displayName if assignee else "Unassigned"
+            issue_text.append(f"{assignee_name}\n", style="green")
 
-        issue_text.append("Reporter: ", style="blue")
-        issue_text.append(f"{issue.fields.reporter.displayName}\n", style="green")
+            issue_text.append("Reporter: ", style="blue")
+            reporter = getattr(issue.fields, 'reporter', None)
+            reporter_name = reporter.displayName if reporter else "Unknown"
+            issue_text.append(f"{reporter_name}\n", style="green")
 
-        issue_text.append("Created: ", style="blue")
-        issue_text.append(f"{issue.fields.created}\n", style="white")
+            issue_text.append("Created: ", style="blue")
+            issue_text.append(f"{getattr(issue.fields, 'created', 'Unknown')}\n", style="white")
 
-        issue_text.append("Updated: ", style="blue")
-        issue_text.append(f"{issue.fields.updated}\n\n", style="white")
+            issue_text.append("Updated: ", style="blue")
+            issue_text.append(f"{getattr(issue.fields, 'updated', 'Unknown')}\n\n", style="white")
 
-        issue_text.append("Description:\n", style="blue bold")
-        issue_text.append(f"{issue.fields.description or 'No description provided.'}\n", style="white")
+            issue_text.append("Description:\n", style="blue bold")
+            issue_text.append(f"{getattr(issue.fields, 'description', 'No description provided.')}\n", style="white")
 
-        panel = Panel(issue_text, title=f"Issue Details: {issue.key}", expand=False, border_style="cyan")
-        self.console.print(panel)
+            panel = Panel(issue_text, title=f"Issue Details: {issue.key}", expand=False, border_style="cyan")
+            self.console.print(panel)
 
-        # Display parent ticket
-        if hasattr(issue.fields, 'parent'):
-            parent = issue.fields.parent
-            self.console.print(f"\nParent: {parent.key} - {parent.fields.summary}", style="cyan")
+            # Display parent ticket
+            if hasattr(issue.fields, 'parent'):
+                parent = issue.fields.parent
+                self.console.print(f"\nParent: {parent.key} - {parent.fields.summary}", style="cyan")
 
-        # Display linked tickets
-        links = issue.fields.issuelinks
-        if links:
-            self.console.print("\nLinked Issues:", style="cyan")
-            for link in links:
-                if hasattr(link, 'outwardIssue'):
-                    linked_issue = link.outwardIssue
-                    link_type = link.type.outward
-                elif hasattr(link, 'inwardIssue'):
-                    linked_issue = link.inwardIssue
-                    link_type = link.type.inward
-                else:
-                    continue
-                self.console.print(f"  {link_type}: {linked_issue.key} - {linked_issue.fields.summary}")
+            # Display linked tickets
+            links = getattr(issue.fields, 'issuelinks', [])
+            if links:
+                self.console.print("\nLinked Issues:", style="cyan")
+                for link in links:
+                    if hasattr(link, 'outwardIssue'):
+                        linked_issue = link.outwardIssue
+                        link_type = link.type.outward
+                    elif hasattr(link, 'inwardIssue'):
+                        linked_issue = link.inwardIssue
+                        link_type = link.type.inward
+                    else:
+                        continue
+                    self.console.print(f"  {link_type}: {linked_issue.key} - {linked_issue.fields.summary}")
 
-        # Display sub-tasks
-        subtasks = issue.fields.subtasks
-        if subtasks:
-            self.console.print("\nSub-tasks:", style="cyan")
-            for subtask in subtasks:
-                self.console.print(f"  {subtask.key} - {subtask.fields.summary}")
+            # Display sub-tasks
+            subtasks = getattr(issue.fields, 'subtasks', [])
+            if subtasks:
+                self.console.print("\nSub-tasks:", style="cyan")
+                for subtask in subtasks:
+                    self.console.print(f"  {subtask.key} - {subtask.fields.summary}")
 
-        # Display comments
-        self.display_comments(issue.key)
+            # Display comments
+            self.display_comments(issue.key)
+        except AttributeError as e:
+            print(f"Error displaying issue details: {e}")
+            print(f"Issue key: {issue.key}")
+            print("Some fields may be missing or inaccessible.")
 
     def display_comments(self, issue_key):
         comments = self.fetch_comments(issue_key)
@@ -301,12 +309,51 @@ class IssueManager:
             self.console.print(f"Error creating issue: {str(e)}", style="red")
             return None
 
-    def link_issues(self, from_issue, to_issue, link_type):
+    def link_issues(self, from_issue, to_issue):
         try:
-            self.jira.create_issue_link(link_type, from_issue, to_issue)
-            print(f"Linked {from_issue} to {to_issue} with link type '{link_type}'")
-        except JIRAError as e:
-            print(f"Error linking issues: {str(e)}")
+            # Fetch the current issue to check existing links
+            issue = self.jira.issue(from_issue)
+            
+            # Check if the issues are already linked
+            existing_link = next((link for link in issue.fields.issuelinks 
+                                  if (hasattr(link, 'outwardIssue') and link.outwardIssue.key == to_issue) or
+                                     (hasattr(link, 'inwardIssue') and link.inwardIssue.key == to_issue)), None)
+            
+            if existing_link:
+                # If already linked, unlink the issues
+                self.jira.delete_issue_link(existing_link.id)
+                self.console.print(f"Unlinked {from_issue} from {to_issue}", style="green")
+                return
+
+            # If not linked, proceed with linking
+            link_types = self.jira.issue_link_types()
+            
+            if not link_types:
+                self.console.print("No link types available.", style="yellow")
+                return
+
+            # Display available link types
+            self.console.print("Available link types:", style="cyan")
+            for idx, lt in enumerate(link_types, 1):
+                self.console.print(f"{idx}. {lt.outward} / {lt.inward}", style="white")
+            
+            # Ask user to choose a link type
+            choice = input("Enter the number of the link type you want to use: ")
+            try:
+                chosen_link_type = link_types[int(choice) - 1]
+            except (ValueError, IndexError):
+                self.console.print("Invalid choice. Using the first available link type.", style="yellow")
+                chosen_link_type = link_types[0]
+
+            # Create the link
+            self.jira.create_issue_link(
+                type=chosen_link_type.name,
+                inwardIssue=from_issue,
+                outwardIssue=to_issue
+            )
+            self.console.print(f"Linked {from_issue} to {to_issue} with link type '{chosen_link_type.outward}'", style="green")
+        except Exception as e:
+            self.console.print(f"Error managing issue link: {str(e)}", style="red")
 
     def update_issue_description(self, issue_key, new_description):
         try:

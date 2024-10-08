@@ -92,7 +92,7 @@ class JiraCLI(cmd.Cmd):
             ("/r", "Display top 10 recently updated tickets reported by you."),
             ("/t [TICKET]", "Display issue tree starting from current or specified ticket."),
             ("/n", "Create a new ticket under the current ticket (epic or task), or create a new epic if no ticket is focused."),
-            ("/l TICKET", "Link current ticket to specified ticket as 'Relates to'."),
+            ("/l", "Link current ticket to specified ticket or unlink if already linked."),
             ("/e", "List all epics reported by you."),
             ("/x", "Clear the current focused ticket."),
             ("/u", "Update the description of the currently focused ticket."),
@@ -187,11 +187,14 @@ class JiraCLI(cmd.Cmd):
             self.issue_manager.display_issue(new_issue)
 
     def do_l(self, arg):
-        """Link current ticket to specified ticket as 'Relates to'."""
+        """Link current ticket to specified ticket or unlink if already linked."""
         if self.current_ticket:
-            self.issue_manager.link_issues(self.current_ticket, arg, "Relates to")
+            if arg:
+                self.issue_manager.link_issues(self.current_ticket, arg)
+            else:
+                self.console.print("Please provide a ticket ID to link to or unlink from.", style="yellow")
         else:
-            print("No ticket currently focused. Use a ticket ID first.")
+            self.console.print("No ticket currently focused. Use a ticket ID first.", style="yellow")
 
     def do_e(self, arg):
         """List all epics reported by you."""
@@ -218,11 +221,16 @@ class JiraCLI(cmd.Cmd):
             parent = self.issue_manager.get_parent_issue(self.current_ticket)
             if parent:
                 self.current_ticket = parent.key
-                self.issue_manager.display_issue(parent)
+                try:
+                    self.issue_manager.display_issue(parent)
+                except AttributeError as e:
+                    self.console.print(f"Error displaying parent issue: {e}", style="red")
+                    self.console.print("The parent issue may not have all expected fields.", style="yellow")
+                    self.console.print(f"Parent issue key: {parent.key}", style="cyan")
             else:
-                print("No parent ticket found.")
+                self.console.print("No parent ticket found.", style="yellow")
         else:
-            print("No ticket currently focused. Use a ticket ID first.")
+            self.console.print("No ticket currently focused. Use a ticket ID first.", style="yellow")
 
     def do_i(self, arg):
         """Ask a question to ChatGPT."""
@@ -275,6 +283,7 @@ class JiraCLI(cmd.Cmd):
             available_statuses = self.issue_manager.get_available_statuses(self.current_ticket)
             if line in available_statuses:
                 self.issue_manager.update_issue_status(self.current_ticket, line)
+        print() # For readability
         return stop
 
     def focus_on_issue(self, issue):

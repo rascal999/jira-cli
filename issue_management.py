@@ -139,24 +139,17 @@ class IssueManager:
         return self.status_colors.get(status, "white")  # Default to white if status not found
 
     def format_issue_key(self, issue):
-        project_key = issue.key.split('-')[0]
-        issue_number = issue.key.split('-')[1]
+        project_key, issue_number = issue.key.split('-')
         project_color = self.get_project_color(project_key)
-        
-        text = Text()
-        text.append(f"{project_key}-", style=project_color)
-        text.append(f"{issue_number}", style="bold")
-        return text
+        return Text.assemble((project_key, project_color), "-", (issue_number, "bold"))
 
     def format_status(self, status):
-        color = self.get_status_color(status)
-        return f"[{color}][{status}][/{color}]"
+        return Text(status, style=self.get_status_color(status))
 
     def format_assignee(self, assignee):
         if assignee:
-            color = self.get_user_color(assignee.displayName)
-            return f"[{color}]{assignee.displayName}[/{color}]"
-        return "Unassigned"
+            return Text(assignee.displayName, style=self.get_user_color(assignee.displayName))
+        return Text("Unassigned", style="italic")
 
     def get_color_from_string(self, s):
         # Generate a hash of the string
@@ -168,8 +161,8 @@ class IssueManager:
         return color
 
     def format_issue_type(self, issue_type):
-        color = self.get_color_from_string(issue_type)
-        return Text(issue_type, style=color)
+        short_type = issue_type[:8]  # Truncate to 8 characters
+        return Text(short_type, style=self.get_color_for_string(issue_type, self.color_palette))
 
     def get_color_for_status(self, status):
         # Generate a hash of the status name
@@ -188,64 +181,25 @@ class IssueManager:
     def get_emoji_width(self, emoji):
         return sum(2 if unicodedata.east_asian_width(c) in ('F', 'W') else 1 for c in emoji)
 
-    def get_assignee_emojis(self, assignee):
-        emojis = [
-            "✏️", "📌", "🏆", "💎", "⚖️", "🔨", "🔗", "🧰", "🔦", "🔒", "🌟", "🌈", "📱",
-            "☎️", "🔋", "💼", "📅", "📬", "🔔", "🎵", "📎", "✂️", "🧮", "🖋️",
-            "📘", "🗝️", "📢", "🔊", "💬", "👁️", "🔆", "⚡", "💧", "☁️", "⏱️", "🧲", "🔬",
-            "🧩", "🧪", "🗂️", "🏹", "⭐", "🌊", "🗻", "🏔️", "🏕️", "🏞️", "🌄", "🌅", "🏙️",
-            "🚦", "🚥", "🔭", "🧬", "🔮", "🎨", "🧵", "🧶", "🧱", "🦺", "🥽", "🧳", "🌡️",
-            "🧪", "🧫", "🧬", "🔭", "🔬", "🕯️", "🪔", "🧯", "🛡️", "🎭", "🎨", "🧩", "♟️",
-            "🎲", "🔖", "🏷️", "🗳️", "🗃️", "🗄️", "🔏", "🔐", "🔑", "🗝️", "🪓", "🔨"
-        ]
-        
-        seed = sum(ord(c) for c in assignee)
-        first_emoji = emojis[seed % len(emojis)]
-        second_emoji = emojis[(seed * 31) % len(emojis)]
-        
-        return (first_emoji, second_emoji)
-
     def display_issues_table(self, issues, title):
-        table = Table(title=title, show_edge=False, expand=False)
-        table.add_column("Key", no_wrap=True)
-        table.add_column("Type")
-        table.add_column("Summary", style="green")
-        table.add_column("Status")
-        table.add_column("Assignee")
-
-        # Define color list
-        colors = ["cyan", "blue", "magenta", "green", "yellow", "red", "purple", "orange"]
+        table = Table(title=title, show_edge=False, expand=True, box=box.MINIMAL)
+        table.add_column("Key", no_wrap=True, justify="left", style="cyan", width=12)
+        table.add_column("Type", width=10, no_wrap=True)
+        table.add_column("Summary", style="green", ratio=50, no_wrap=False)
+        table.add_column("Status", width=12, no_wrap=True)
+        table.add_column("Assignee", width=20, no_wrap=True)  # Reduced width as we no longer have emojis
 
         for issue in issues:
-            key = issue.key
-            project = key.split('-')[0]  # Extract project string from key
-            issue_type = issue.fields.issuetype.name
-            summary = issue.fields.summary
-            status = issue.fields.status.name
-            assignee = issue.fields.assignee.displayName if issue.fields.assignee else "Unassigned"
+            key = self.format_issue_key(issue)
+            issue_type = self.format_issue_type(issue.fields.issuetype.name)
+            summary = Text(issue.fields.summary, overflow="ellipsis")
+            status = self.format_status(issue.fields.status.name)
+            assignee = self.format_assignee(issue.fields.assignee)
 
-            # Get emojis for the assignee
-            first_emoji, second_emoji = self.get_assignee_emojis(assignee)
-            
-            # Adjust spacing based on emoji width
-            first_emoji_space = " " if self.get_emoji_width(first_emoji) == 1 else ""
-            second_emoji_space = " " if self.get_emoji_width(second_emoji) == 1 else ""
-            
-            # Color-code the columns
-            project_color = self.get_color_for_string(project, colors)
-            type_color = self.get_color_for_string(issue_type, colors)
-            status_color = self.get_color_for_string(status, colors)
-            assignee_color = self.get_color_for_string(assignee, colors)
+            table.add_row(key, issue_type, summary, status, assignee)
 
-            # Create rich Text objects for colored and formatted display
-            key_text = Text(key, style=project_color)
-            type_text = Text(issue_type, style=type_color)
-            status_text = Text(status, style=status_color)
-            assignee_text = Text(f"{first_emoji}{first_emoji_space} {assignee} {second_emoji_space}{second_emoji}", style=assignee_color)
-
-            table.add_row(key_text, type_text, summary, status_text, assignee_text)
-
-        self.console.print(table)
+        console_width = self.console.width
+        self.console.print(table, width=console_width)
 
     def get_user_epics(self):
         """List all epics reported by the current user."""

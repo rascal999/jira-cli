@@ -185,14 +185,15 @@ class IssueManager:
         table = Table(title=title, show_edge=False, expand=True, box=box.MINIMAL)
         table.add_column("Key", no_wrap=True, justify="left", style="cyan", width=12)
         table.add_column("Type", width=10, no_wrap=True)
-        table.add_column("Summary", style="green", ratio=50, no_wrap=False)
+        table.add_column("Summary", ratio=50, no_wrap=False)  # Remove default style
         table.add_column("Status", width=12, no_wrap=True)
-        table.add_column("Assignee", width=20, no_wrap=True)  # Reduced width as we no longer have emojis
+        table.add_column("Assignee", width=20, no_wrap=True)
 
-        for issue in issues:
+        for index, issue in enumerate(issues):
             key = self.format_issue_key(issue)
             issue_type = self.format_issue_type(issue.fields.issuetype.name)
-            summary = Text(issue.fields.summary, overflow="ellipsis")
+            summary_style = "green" if index % 2 == 0 else "yellow"
+            summary = Text(issue.fields.summary, style=summary_style, overflow="ellipsis")
             status = self.format_status(issue.fields.status.name)
             assignee = self.format_assignee(issue.fields.assignee)
 

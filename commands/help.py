@@ -8,8 +8,10 @@ def show_help(cli):
     table.add_column("Command", style="cyan", no_wrap=True)
     table.add_column("Description", style="magenta")
 
-    for command, help_text in cli.help_dict.items():
-        table.add_row(f"/{command}", help_text)
+    colors = ["magenta", "blue"]
+    for index, (command, help_text) in enumerate(cli.help_dict.items()):
+        color = colors[index % 2]
+        table.add_row(f"/{command}", help_text, style=color)
 
     console.print(table)
 

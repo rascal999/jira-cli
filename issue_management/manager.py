@@ -12,6 +12,7 @@ import importlib
 import os
 from rich.text import Text
 from jira import JIRAError  # Add this import
+import io
 
 class IssueManager:
     def __init__(self, jira_client):
@@ -163,3 +164,21 @@ class IssueManager:
         except Exception as e:
             self.console.print(f"Error fetching epic children: {str(e)}", style="red")
             return []
+
+    def add_attachment(self, issue_key, filename, content):
+        try:
+            issue = self.jira.issue(issue_key)
+            attachment = io.StringIO(content)
+            self.jira.add_attachment(issue=issue, attachment=attachment, filename=filename)
+            return True
+        except JIRAError as e:
+            if e.status_code == 404:
+                raise ValueError(f"Ticket {issue_key} not found.")
+            elif e.status_code == 403:
+                raise ValueError(f"You don't have permission to add attachments to ticket {issue_key}.")
+            else:
+                raise ValueError(f"Unable to save transcript to ticket {issue_key}.")
+        except Exception as e:
+            raise ValueError(f"Unexpected error: Unable to save transcript to ticket {issue_key}.")
+
+    # ... other methods ...

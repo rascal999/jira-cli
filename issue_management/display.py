@@ -49,7 +49,7 @@ def display_issue(self, issue):
             parent = issue.fields.parent
             self.console.print(f"\nParent: {parent.key} - {parent.fields.summary}", style="cyan")
 
-        # Display linked tickets
+        # Display linked issues
         links = getattr(issue.fields, 'issuelinks', [])
         if links:
             self.console.print("\nLinked Issues:", style="cyan")
@@ -70,6 +70,14 @@ def display_issue(self, issue):
             self.console.print("\nSub-tasks:", style="cyan")
             for subtask in subtasks:
                 self.console.print(f"  {subtask.key} - {subtask.fields.summary}")
+
+        # Display child issues (for epics)
+        if getattr(issue.fields.issuetype, 'name', '').lower() == 'epic':
+            child_issues = self.get_epic_children(issue.key)
+            if child_issues:
+                self.console.print("\nChild Issues:", style="cyan")
+                for child in child_issues:
+                    self.console.print(f"  {child.key} - {child.fields.summary}")
 
         # Display comments
         self.display_comments(issue.key)

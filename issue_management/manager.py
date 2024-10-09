@@ -149,3 +149,11 @@ class IssueManager:
 
     def fetch_issue(self, issue_key):
         return fetch_issue(self, issue_key)
+
+    def get_epic_children(self, epic_key):
+        try:
+            jql = f'"Epic Link" = {epic_key}'
+            return self.jira.search_issues(jql)
+        except Exception as e:
+            self.console.print(f"Error fetching epic children: {str(e)}", style="red")
+            return []

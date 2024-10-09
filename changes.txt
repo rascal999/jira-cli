@@ -1,6 +1,7 @@
 * Alternate colours in panel table (enhancement/alternate-colours)
 
 * Bug fixes (bug-fixes/20241009)
+** /s not working
 ** "No comments found" should be hidden
 ** "You have no epics" after list of epics
 

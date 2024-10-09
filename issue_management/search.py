@@ -34,7 +34,10 @@ def get_user_epics(self):
         current_user = self.jira.current_user()
         jql_query = f'reporter = {current_user} AND issuetype = Epic ORDER BY created DESC'
         epics = self.jira.search_issues(jql_query, maxResults=50, fields='summary,status,issuetype,assignee')
-        self.display_issues_table(epics, "User Epics")
+        if epics:
+            self.display_issues_table(epics, "User Epics")
+        else:
+            self.console.print("You have no epics.", style="yellow")
     except JIRAError as e:
         self.console.print(f"An error occurred while fetching user epics: {str(e)}", style="red")
 

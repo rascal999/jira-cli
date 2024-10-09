@@ -103,8 +103,6 @@ def display_comments(self, issue_key):
                 )
                 self.console.print(panel)
                 self.console.print()  # Add a blank line between comments
-        else:
-            self.console.print("\nNo comments found.", style="yellow")
     except Exception as e:
         self.console.print(f"Error fetching comments: {str(e)}", style="red")
 

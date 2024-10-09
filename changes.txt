@@ -3,7 +3,7 @@
 ** "No comments found" should be hidden (enhancement/no-comment-msg)
 
 * Bug fixes
-** "You have no epics" after list of epics (bugfixes/no-epics-msg)
+** EMPTY?
 
 * Jira Templates (feature/jira-templates)
 ** Templates for issue types

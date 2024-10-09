@@ -121,9 +121,10 @@ def display_issues_table(self, issues, title):
     table.add_column("Status", style="green")
     table.add_column("Assignee", style="yellow")
 
-    for issue in issues:
+    for index, issue in enumerate(issues):
         key = Text(issue.key, style=get_color_for_string(issue.key.split('-')[0]))
-        summary = Text(issue.fields.summary)
+        summary_style = "green" if index % 2 == 0 else "bright_magenta"
+        summary = Text(issue.fields.summary, style=summary_style)
         status = Text(issue.fields.status.name, style=get_color_for_string(issue.fields.status.name))
         assignee = Text(issue.fields.assignee.displayName if issue.fields.assignee else "Unassigned", 
                         style=get_color_for_string(issue.fields.assignee.displayName if issue.fields.assignee else "Unassigned"))

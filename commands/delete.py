@@ -1,4 +1,5 @@
 from rich.console import Console
+from rich.prompt import Confirm
 
 console = Console()
 
@@ -11,6 +12,13 @@ def delete_issue(issue_manager, current_ticket, issue_key):
 
     try:
         issue = issue_manager.jira.issue(issue_key)
+        
+        # Add confirmation prompt
+        confirm = Confirm.ask(f"Are you sure you want to delete issue {issue_key}?", default=False)
+        if not confirm:
+            console.print("Deletion cancelled.", style="yellow")
+            return False
+
         issue.delete()
         console.print(f"Successfully deleted issue {issue_key}", style="green")
         

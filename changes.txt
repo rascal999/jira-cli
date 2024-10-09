@@ -1,9 +1,9 @@
-* Alternate colours in panel table (enhancement/alternate-colours)
+* Enhancements
+** HTTP fail code verbosity in /s (enhancements/search-http-fail-verbosity)
+** "No comments found" should be hidden (enhancement/no-comment-msg)
 
-* Bug fixes (bug-fixes/20241009)
-** /s not working
-** "No comments found" should be hidden
-** "You have no epics" after list of epics
+* Bug fixes
+** "You have no epics" after list of epics (bugfixes/no-epics-msg)
 
 * Jira Templates (feature/jira-templates)
 ** Templates for issue types

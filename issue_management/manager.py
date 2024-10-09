@@ -145,7 +145,13 @@ class IssueManager:
         return formatted_text
 
     def get_subtasks(self, issue_key):
-        return get_subtasks(self, issue_key)
+        try:
+            issue = self.jira.issue(issue_key)
+            subtasks = issue.fields.subtasks
+            return subtasks
+        except Exception as e:
+            self.console.print(f"Error fetching subtasks for {issue_key}: {str(e)}", style="red")
+            return []
 
     def fetch_issue(self, issue_key):
         return fetch_issue(self, issue_key)

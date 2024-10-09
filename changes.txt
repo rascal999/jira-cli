@@ -1,10 +1,8 @@
 * Enhancements
-** Refactor (enhancements/refactor)
-** HTTP fail code verbosity in /s (enhancements/search-http-fail-verbosity)
-** "No comments found" should be hidden (enhancement/no-comment-msg)
+** requirements.txt
 
 * Bug fixes
 ** EMPTY?
 
-* Jira Templates (feature/jira-templates)
-** Templates for issue types
+* Features
+** EMPTY?

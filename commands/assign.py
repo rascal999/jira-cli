@@ -29,3 +29,9 @@ def assign_issue(issue_manager, current_ticket, arg):
         issue_manager.display_issue(updated_issue)
     except Exception as e:
         console.print(f"Error assigning issue {ticket_to_assign}: {str(e)}", style="red")
+
+def execute(cli, arg):
+    assign_issue(cli.issue_manager, cli.current_ticket, arg)
+
+COMMAND = "assign"
+HELP = "Assign the current ticket or a specified ticket to yourself."

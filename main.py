@@ -12,8 +12,9 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.text import Text
 import os
-from commands import clear, grab_url, delete, help, quit, comment, search, recent, tree, new, link, epics, update, parent, ai, rename, open_browser  # Add this import at the top of the file
+from commands import clear, grab, delete, help, open, quit, comment, search, recent, tree, new, link, epics, update, parent, ai, rename
 from dotenv import load_dotenv
+import importlib
 
 # Initialize colorama
 init(autoreset=True)
@@ -28,6 +29,12 @@ class JiraCLI(cmd.Cmd):
         self.history_file = os.path.expanduser('~/.jira_cli_history')
         self.load_history()
 
+        # Initialize help_dict
+        self.help_dict = {}
+
+        # Dynamically load commands
+        self.load_commands()
+
         # Initialize OpenAI client
         openai.api_key = os.getenv("OPENAI_API_KEY")
         self.openai_model = os.getenv("OPENAI_MODEL", "gpt-3.5-turbo")  # Default to gpt-3.5-turbo if not specified
@@ -37,6 +44,17 @@ class JiraCLI(cmd.Cmd):
         else:
             # Old version of OpenAI library
             self.openai_client = openai
+
+    def load_commands(self):
+        commands_dir = os.path.join(os.path.dirname(__file__), 'commands')
+        for filename in os.listdir(commands_dir):
+            if filename.endswith('.py') and not filename.startswith('__'):
+                module_name = filename[:-3]
+                module = importlib.import_module(f'commands.{module_name}')
+                if hasattr(module, 'COMMAND') and hasattr(module, 'execute') and hasattr(module, 'HELP'):
+                    command = getattr(module, 'COMMAND')
+                    setattr(self, f'do_{command}', lambda arg, cmd=module.execute, self=self: cmd(self, arg))
+                    self.help_dict[command] = getattr(module, 'HELP')
 
     def load_history(self):
         if os.path.exists(self.history_file):
@@ -86,102 +104,6 @@ class JiraCLI(cmd.Cmd):
             if state < len(suggestions):
                 return '@' + suggestions[state]
         return None
-
-    def do_help(self, arg):
-        """Show help message."""
-        help.show_help()
-
-    def do_quit(self, arg):
-        """Quit the program."""
-        return quit.quit_program()
-
-    def do_comment(self, arg):
-        """Add a comment to the current ticket."""
-        comment.add_comment(self.issue_manager, self.current_ticket, arg)
-
-    def do_recent(self, arg):
-        """Show recently updated issues."""
-        self.issue_manager.get_recent_issues()
-
-    def do_search(self, arg):
-        """Search for issues using JQL."""
-        search.search_issues(self.issue_manager, arg)
-
-    def do_delete(self, arg):
-        """Delete a ticket."""
-        if delete.delete_issue(self.issue_manager, self.current_ticket, arg):
-            self.current_ticket = None
-            self.update_prompt()
-            self.console.print("Unfocused deleted ticket.", style="green")
-
-    def do_tree(self, arg):
-        """Display issue tree starting from current or specified ticket."""
-        tree.display_issue_tree(self.issue_manager, self.current_ticket, arg)
-
-    def do_new(self, arg):
-        """Create a new ticket under the current ticket (epic or task), or create a new epic if no ticket is focused."""
-        parent = self.current_ticket
-        new_issue = new.create_new_ticket(self.issue_manager, parent)
-        if new_issue:
-            self.current_ticket = new_issue.key
-            self.update_prompt(new_issue)
-
-    def do_link(self, arg):
-        """Link current ticket to specified ticket or unlink if already linked."""
-        link.link_issues(self.issue_manager, self.current_ticket, arg)
-
-    def do_epics(self, arg):
-        """List all epics reported by you."""
-        epics.list_user_epics(self.issue_manager)
-
-    def do_clear(self, arg):
-        """Clear the current focused ticket."""
-        clear.clear_focus(self)
-
-    def do_update(self, arg):
-        """Update the description of the current ticket."""
-        if not self.current_ticket:
-            self.console.print("No ticket currently selected. Use /view <issue_key> to select a ticket.", style="yellow")
-            return
-
-        update.update_description(self.issue_manager, self.current_ticket)
-        
-        # Fetch the updated ticket
-        updated_issue = self.issue_manager.fetch_issue(self.current_ticket)
-        
-        if updated_issue:
-            # Display the updated issue
-            self.issue_manager.display_issue(updated_issue)
-            
-            # Update the prompt with the latest information
-            self.update_prompt(updated_issue)
-        else:
-            self.console.print(f"Failed to fetch updated ticket {self.current_ticket}", style="red")
-
-    def do_parent(self, arg):
-        """Change focus to parent ticket and display its details."""
-        parent.focus_on_parent(self.issue_manager, self)
-
-    def do_ai(self, arg):
-        """Ask a question to ChatGPT."""
-        ai.ask_ai(self.openai_client, arg)
-
-    def do_rename(self, arg):
-        """Rename the summary of the currently focused ticket."""
-        rename.rename_issue(self.issue_manager, self.current_ticket, arg)
-
-    def do_grab(self, arg):
-        """Copy URL of current or specified issue to clipboard."""
-        grab_url.grab_url(self.issue_manager, self.current_ticket, arg)
-
-    def do_open(self, arg):
-        """Open the current or specified ticket in the default web browser."""
-        open_browser.open_in_browser(self.issue_manager, self.current_ticket, arg)
-
-    def do_assign(self, arg):
-        """Assign the current ticket or a specified ticket to the authenticated user."""
-        from commands.assign import assign_issue
-        assign_issue(self.issue_manager, self.current_ticket, arg)
 
     def default(self, line):
         """Handle ticket ID, search string input, or commands."""
@@ -273,7 +195,7 @@ class JiraCLI(cmd.Cmd):
                 'a': 'rename',
                 'g': 'grab',
                 'o': 'open',
-                'as': 'assign'  # Add this line for the assign command
+                'as': 'assign'
             }
             
             # Use the full command if available, otherwise keep the original

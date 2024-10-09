@@ -15,3 +15,9 @@ def clear_focus(cli):
         console.print(f"Cleared focus from {old_ticket}", style="green")
     else:
         console.print("No ticket currently focused.", style="yellow")
+
+def execute(cli, arg):
+    clear_focus(cli)
+
+COMMAND = "clear"
+HELP = "Clear the current focused ticket."

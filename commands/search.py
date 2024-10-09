@@ -6,6 +6,9 @@ from urllib.parse import quote
 
 console = Console()
 
+def execute(cli, arg):
+    search_issues(cli.issue_manager, arg)
+
 def search_issues(issue_manager, query):
     try:
         issues = issue_manager.jira.search_issues(query)
@@ -16,7 +19,7 @@ def search_issues(issue_manager, query):
         jql_url = f"{base_url}/issues/?jql={encoded_query}"
         
         if issues:
-            display_search_results(issues)
+            issue_manager.display_issues_table(issues, f"Search Results for '{query}'")
             console.print(f"\nJQL Query URL: {jql_url}", style="cyan")
         else:
             console.print("No issues found matching the query.", style="yellow")
@@ -38,21 +41,5 @@ def search_issues(issue_manager, query):
         console.print("Unexpected error searching for issues.", style="red")
         return [], None
 
-def display_search_results(issues):
-    table = Table(title="Search Results")
-    table.add_column("Key", style="cyan", no_wrap=True)
-    table.add_column("Summary", style="magenta")
-    table.add_column("Status", style="green")
-    table.add_column("Assignee", style="yellow")
-
-    for issue in issues:
-        assignee = resolve_user_display_name(issue.fields.assignee)
-        table.add_row(issue.key, issue.fields.summary, issue.fields.status.name, assignee)
-
-    console.print(table)
-
-def get_recent_issues(issue_manager):
-    jql = "order by created DESC"
-    issues = issue_manager.search_issues(jql)
-    for issue in list(issues)[:10]:  # Limit to first 10 issues
-        print(f"{issue.key}: {issue.fields.summary}")
+COMMAND = "search"
+HELP = "Search for issues using JQL."

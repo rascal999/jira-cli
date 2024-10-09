@@ -1,6 +1,7 @@
+import os
+import re  # Add this import
 from rich.console import Console
 from rich.prompt import Prompt
-import os
 
 console = Console()
 
@@ -104,3 +105,13 @@ def create_new_ticket(issue_manager, parent=None):
     except Exception as e:
         console.print(f"Error creating issue: {str(e)}", style="red")
         return None
+
+def execute(cli, arg):
+    parent = arg if arg else None
+    new_issue = create_new_ticket(cli.issue_manager, parent)
+    if new_issue:
+        cli.current_ticket = new_issue.key
+        cli.update_prompt()
+
+COMMAND = "new"
+HELP = "Create a new ticket. If a ticket ID is provided, create a subtask. Usage: /new [PARENT_TICKET_ID]"

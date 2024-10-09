@@ -25,3 +25,9 @@ def build_subtree(issue_manager, parent_issue, parent_node):
     for subtask in subtasks:
         node = parent_node.add(f"[cyan]{subtask.key}[/cyan]: {subtask.fields.summary}")
         build_subtree(issue_manager, subtask, node)
+
+def execute(cli, arg):
+    display_issue_tree(cli.issue_manager, arg)
+
+COMMAND = "tree"
+HELP = "Display issue tree starting from current or specified ticket."

@@ -144,6 +144,7 @@ def update_issue_summary(self, issue_key, new_summary):
     try:
         issue = self.jira.issue(issue_key)
         issue.update(fields={'summary': new_summary})
-        print(f"Updated summary for {issue_key}")
-    except JIRAError as e:
-        print(f"Error updating summary for {issue_key}: {str(e)}")
+        return True
+    except Exception as e:
+        self.console.print(f"Error updating summary for {issue_key}: {str(e)}", style="red")
+        return False

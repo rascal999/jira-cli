@@ -41,3 +41,25 @@ def update_description(issue_manager, issue_key):
 
     except Exception as e:
         console.print(f"Error updating description for {issue_key}: {str(e)}", style="red")
+
+def execute(cli, arg):
+    if not cli.current_ticket:
+        console.print("No ticket currently selected. Use /view <issue_key> to select a ticket.", style="yellow")
+        return
+
+    update_description(cli.issue_manager, cli.current_ticket)
+    
+    # Fetch the updated ticket
+    updated_issue = cli.issue_manager.fetch_issue(cli.current_ticket)
+    
+    if updated_issue:
+        # Display the updated issue
+        cli.issue_manager.display_issue(updated_issue)
+        
+        # Update the prompt with the latest information
+        cli.update_prompt(updated_issue)
+    else:
+        console.print(f"Failed to fetch updated ticket {cli.current_ticket}", style="red")
+
+COMMAND = "update"
+HELP = "Update the description of the current ticket."

@@ -29,17 +29,17 @@ def search_issues(self, query):
         self.console.print(f"Unexpected error searching for issues: {str(e)}", style="red")
         return [], None
 
-def get_user_epics(self):
-    try:
-        current_user = self.jira.current_user()
-        jql_query = f'reporter = {current_user} AND issuetype = Epic ORDER BY created DESC'
-        epics = self.jira.search_issues(jql_query, maxResults=50, fields='summary,status,issuetype,assignee')
-        if epics:
-            self.display_issues_table(epics, "User Epics")
-        else:
-            self.console.print("You have no epics.", style="yellow")
-    except JIRAError as e:
-        self.console.print(f"An error occurred while fetching user epics: {str(e)}", style="red")
+#def get_user_epics(self):
+#    try:
+#        current_user = self.jira.current_user()
+#        jql_query = f'reporter = {current_user} AND issuetype = Epic ORDER BY created DESC'
+#        epics = self.jira.search_issues(jql_query, maxResults=50, fields='summary,status,issuetype,assignee')
+#        if epics:
+#            self.display_issues_table(epics, "User Epics")
+#        else:
+#            self.console.print("You have no epics.", style="yellow")
+#    except JIRAError as e:
+#        self.console.print(f"An error occurred while fetching user epics: {str(e)}", style="red")
 
 def get_recent_issues(self):
     try:

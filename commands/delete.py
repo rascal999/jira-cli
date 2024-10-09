@@ -21,3 +21,12 @@ def delete_issue(issue_manager, current_ticket, issue_key):
         console.print(f"Error deleting issue {issue_key}: {str(e)}", style="red")
     
     return False
+
+def execute(cli, arg):
+    if delete_issue(cli.issue_manager, cli.current_ticket, arg):
+        cli.current_ticket = None
+        cli.update_prompt()
+        console.print("Unfocused deleted ticket.", style="green")
+
+COMMAND = "delete"
+HELP = "Delete a ticket. Usage: /delete [TICKET_ID]"

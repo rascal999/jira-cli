@@ -1,6 +1,6 @@
+from rich.console import Console
 import webbrowser
 import os
-from rich.console import Console
 
 console = Console()
 
@@ -35,3 +35,9 @@ def open_in_browser(issue_manager, current_ticket, issue_key=None):
 
     except Exception as e:
         console.print(f"Error opening {ticket_to_open} in browser: {str(e)}", style="red")
+
+def execute(cli, arg):
+    open_in_browser(cli.issue_manager, cli.current_ticket, arg)
+
+COMMAND = "open"
+HELP = "Open the current or specified ticket in the default web browser."

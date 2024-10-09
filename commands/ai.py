@@ -4,6 +4,9 @@ import os
 
 console = Console()
 
+def execute(cli, arg):
+    ask_ai(cli.openai_client, arg)
+
 def ask_ai(openai_client, question):
     model = os.getenv("OPENAI_MODEL", "gpt-3.5-turbo")  # Default to gpt-3.5-turbo if not specified
     try:
@@ -42,3 +45,6 @@ def ask_ai(openai_client, question):
         console.print(ai_response, style="blue")
     except Exception as e:
         console.print(f"Error: {str(e)}", style="red")
+
+COMMAND = "ai"
+HELP = "Ask a question to ChatGPT. Usage: /ai Your question here."

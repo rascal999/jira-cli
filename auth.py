@@ -18,7 +18,8 @@ def get_jira_client():
     options = {'server': jira_url}
     
     if debug_mode:
-        log_filename = f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_debug.log"
+        #log_filename = f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_debug.log"
+        log_filename = f"debug.log"
         logging.basicConfig(filename=log_filename, level=logging.DEBUG)
         options['verbose'] = True
         options['logging'] = True

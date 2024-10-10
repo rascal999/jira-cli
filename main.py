@@ -157,9 +157,9 @@ class JiraCLI(cmd.Cmd):
 
     def emptyline(self):
         """Handle empty line input."""
-        if self.prompt == "Jira> ":
-            self.do_help(None)  # Changed from self.do_h(None) to self.do_help(None)
-        elif self.current_ticket:
+        if self.current_ticket is None:
+            self.do_help(None)
+        else:
             issue = self.issue_manager.fetch_issue(self.current_ticket)
             if issue:
                 self.issue_manager.display_issue(issue)

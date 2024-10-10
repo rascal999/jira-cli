@@ -236,7 +236,8 @@ def main():
     args = parser.parse_args()
 
     jira_client = get_jira_client()
-    issue_manager = IssueManager(jira_client)
+    console = Console()  # Create a Console object
+    issue_manager = IssueManager(jira_client, console)  # Pass both jira_client and console
     cli = JiraCLI(issue_manager)
 
     # Show help message on startup

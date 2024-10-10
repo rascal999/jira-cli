@@ -25,9 +25,12 @@ from .display import (
 )
 
 class IssueManager:
-    def __init__(self, jira_client):
+    def __init__(self, jira_client, console):
         self.jira = jira_client
-        self.console = Console()
+        self.console = console
+        self.cache_manager = CacheManager(jira_client=self.jira)
+        # Remove or comment out the following line:
+        # self.cache_manager.load_user_cache()
         self.current_ticket = None
         self.user_cache = {}
         self.project_colors = {}
@@ -44,7 +47,6 @@ class IssueManager:
             "OPEN": "green",
         }
         self.commands = self._load_commands()
-        self.cache_manager = CacheManager()
 
     def _load_commands(self):
         commands = {}
@@ -147,14 +149,23 @@ class IssueManager:
     def fetch_issue(self, issue_key):
         cached_issue = self.cache_manager.get_issue(issue_key)
         if cached_issue:
+            print(f"Using cached issue for {issue_key}")  # Debug print
             return cached_issue
 
+        print(f"Fetching issue {issue_key} from API")  # Debug print
         try:
             issue = self.jira.issue(issue_key, fields='summary,status,issuetype,priority,assignee,reporter,created,updated,description,comment')
             # Fetch all comments
             comments = self.jira.comments(issue)
-            # Add comments to the issue object
-            setattr(issue.fields, 'comment', comments)
+            # Replace comment IDs with full comment data
+            issue.raw['fields']['comment']['comments'] = [
+                {
+                    'id': str(comment.id),
+                    'author': {'displayName': comment.author.displayName if comment.author else 'Unknown'},
+                    'created': str(comment.created),
+                    'body': comment.body
+                } for comment in comments
+            ]
             self.cache_manager.save_issue(issue)
             return issue
         except JIRAError as e:
@@ -169,12 +180,10 @@ class IssueManager:
         return self.project_colors[project_key]
 
     def resolve_user_mention(self, account_id):
-        try:
-            user = self.jira.user(account_id)
-            display_name = user.displayName
-            return (display_name, self.get_color_for_user(display_name))
-        except:
-            return (account_id, "white")
+        user = self.cache_manager.resolve_user(account_id)
+        display_name = user['displayName']
+        color = self.get_color_for_user(display_name)
+        return display_name, color
 
     def add_comment(self, issue_key, comment_body):
         try:

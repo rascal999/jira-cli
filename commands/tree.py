@@ -36,10 +36,18 @@ def get_parent_issue(issue_manager, issue):
     return None
 
 def build_subtree(issue_manager, parent_issue, parent_node):
+    # Check for subtasks
     subtasks = issue_manager.get_subtasks(parent_issue.key)
     for subtask in subtasks:
         node = parent_node.add(f"[cyan]{subtask.key}[/cyan]: {subtask.fields.summary}")
         build_subtree(issue_manager, subtask, node)
+    
+    # Check for epic children (if the current issue is an epic)
+    if hasattr(parent_issue.fields, 'issuetype') and parent_issue.fields.issuetype.name.lower() == 'epic':
+        epic_children = issue_manager.get_epic_children(parent_issue.key)
+        for child in epic_children:
+            node = parent_node.add(f"[green]{child.key}[/green]: {child.fields.summary}")
+            build_subtree(issue_manager, child, node)
 
 def execute(cli, arg):
     display_issue_tree(cli.issue_manager, arg)

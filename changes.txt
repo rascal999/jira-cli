@@ -1,6 +1,5 @@
 * Enhancements
-** requirements.txt
-** /view (enhancements/view-ticket-module)
+** Panel (enhancements/panels)
 
 * Bug fixes
 ** EMPTY?
@@ -11,5 +10,3 @@
 *** Check updated field via standard API and return cached or updated ticket
 *** Don't fetch all fields, only those displayed in CLI?
 *** Fetch comments, related, child tasks, parent, sub-tasks behind scenes
-
-** EMPTY?

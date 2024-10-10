@@ -63,37 +63,23 @@ class JiraCLI(cmd.Cmd):
     def save_history(self):
         readline.write_history_file(self.history_file)
 
-    def update_prompt(self, issue=None):
-        if issue is None:
-            issue = self.current_ticket
-
-        if issue:
-            if isinstance(issue, str):  # Issue key
-                key = issue
-                issue_obj = self.issue_manager.fetch_issue(key)
-                if issue_obj:
-                    if isinstance(issue_obj, dict):  # Cached issue
-                        summary = issue_obj['fields']['summary']
-                        status = issue_obj['fields']['status']['name']
-                    else:  # Jira issue object
-                        summary = issue_obj.fields.summary
-                        status = issue_obj.fields.status.name
+    def update_prompt(self):
+        if self.current_ticket:
+            issue = self.issue_manager.fetch_issue(self.current_ticket)
+            if issue:
+                if isinstance(issue, dict):
+                    # Handle dictionary representation
+                    key = issue['key']
+                    summary = issue['fields']['summary']
                 else:
-                    summary = "Unknown"
-                    status = "Unknown"
-            elif isinstance(issue, dict):  # Cached issue
-                key = issue['key']
-                summary = issue['fields']['summary']
-                status = issue['fields']['status']['name']
-            else:  # Jira issue object
-                key = issue.key
-                summary = issue.fields.summary
-                status = issue.fields.status.name
-
-            truncated_summary = summary[:30] + '...' if len(summary) > 30 else summary
-            self.prompt = f"{key} | {truncated_summary} | {status} > "
+                    # Handle object representation
+                    key = issue.key
+                    summary = issue.fields.summary
+                self.prompt = f"{key} | {summary} > "
+            else:
+                self.prompt = "Jira CLI > "
         else:
-            self.prompt = "Jira> "
+            self.prompt = "Jira CLI > "
 
     def get_ansi_color_code(self, color_name):
         color_map = {

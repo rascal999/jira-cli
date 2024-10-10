@@ -150,24 +150,36 @@ class IssueManager:
         cached_issue = self.cache_manager.get_issue(issue_key)
         if cached_issue:
             print(f"Using cached issue for {issue_key}")  # Debug print
-            return cached_issue
+            return cached_issue  # This is likely a dictionary
 
         print(f"Fetching issue {issue_key} from API")  # Debug print
         try:
             issue = self.jira.issue(issue_key, fields='summary,status,issuetype,priority,assignee,reporter,created,updated,description,comment')
-            # Fetch all comments
-            comments = self.jira.comments(issue)
-            # Replace comment IDs with full comment data
-            issue.raw['fields']['comment']['comments'] = [
-                {
-                    'id': str(comment.id),
-                    'author': {'displayName': comment.author.displayName if comment.author else 'Unknown'},
-                    'created': str(comment.created),
-                    'body': comment.body
-                } for comment in comments
-            ]
-            self.cache_manager.save_issue(issue)
-            return issue
+            # Convert the issue object to a dictionary for consistency
+            issue_dict = {
+                'key': issue.key,
+                'fields': {
+                    'summary': issue.fields.summary,
+                    'status': {'name': issue.fields.status.name},
+                    'issuetype': {'name': issue.fields.issuetype.name},
+                    'priority': {'name': issue.fields.priority.name if issue.fields.priority else None},
+                    'assignee': {'displayName': issue.fields.assignee.displayName if issue.fields.assignee else None},
+                    'reporter': {'displayName': issue.fields.reporter.displayName if issue.fields.reporter else None},
+                    'created': str(issue.fields.created),
+                    'updated': str(issue.fields.updated),
+                    'description': issue.fields.description,
+                    'comment': {'comments': [
+                        {
+                            'id': str(comment.id),
+                            'author': {'displayName': comment.author.displayName if comment.author else 'Unknown'},
+                            'created': str(comment.created),
+                            'body': comment.body
+                        } for comment in self.jira.comments(issue)
+                    ]}
+                }
+            }
+            self.cache_manager.save_issue(issue_dict)
+            return issue_dict
         except JIRAError as e:
             self.console.print(f"Error fetching issue {issue_key}: {str(e)}", style="red")
             return None

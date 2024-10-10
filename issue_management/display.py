@@ -143,13 +143,14 @@ def display_comments(issue, get_field, console, cursor, jira, format_comment_bod
                 
                 comment_text = Text()
                 comment_text.append(f"{author}", style=f"bold {author_color}")
-                comment_text.append(f" - {created}\n\n")  # Removed italic style
+                comment_text.append(f" - {created}\n\n")
                 comment_text.append(body)
 
                 comment_panel = Panel(
                     comment_text,
                     border_style=author_color,
-                    expand=False
+                    expand=False,
+                    width=110
                 )
                 console.print(comment_panel)
         else:

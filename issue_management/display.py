@@ -17,19 +17,25 @@ def display_issue_header(issue, get_field):
 
 def display_issue_fields(issue, get_field, get_nested_value):
     issue_text = Text()
-    for field_name, field_label in [
-        ('status', 'Status'),
-        ('issuetype', 'Type'),
-        ('priority', 'Priority'),
-        ('assignee', 'Assignee'),
-        ('reporter', 'Reporter'),
-        ('created', 'Created'),
-        ('updated', 'Updated')
-    ]:
+    fields_to_display = [
+        ('Status', 'status'),
+        ('Type', 'issuetype'),
+        ('Priority', 'priority'),
+        ('Assignee', 'assignee'),
+        ('Reporter', 'reporter'),
+        ('Created', 'created'),
+        ('Updated', 'updated'),
+    ]
+
+    for display_name, field_name in fields_to_display:
         field_value = get_field(field_name)
-        if field_value:
-            issue_text.append(f"{field_label}: ", style="blue")
-            issue_text.append(f"{get_nested_value(field_value, field_name)}\n", style="white")
+        try:
+            value = get_nested_value(field_value, field_name)
+            issue_text.append(f"{display_name}: {value}\n", style="white")
+        except Exception as e:
+            issue_text.append(f"{display_name}: Error retrieving value\n", style="red")
+            print(f"Error processing {field_name}: {str(e)}")
+
     return issue_text
 
 def display_issue_description(issue, get_field):

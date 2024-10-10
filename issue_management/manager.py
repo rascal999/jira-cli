@@ -256,7 +256,8 @@ class IssueManager:
         elif isinstance(obj, dict):
             fields = obj.get('fields', {})
             if field_name in ['assignee', 'reporter']:
-                return fields.get(field_name, {}).get('displayName', 'Unassigned')
+                user = fields.get(field_name, {})
+                return user.get('displayName', 'Unassigned') if user else 'Unassigned'
             elif field_name in ['issuetype', 'priority', 'status']:
                 return fields.get(field_name, {}).get('name', 'Unknown')
             elif field_name in ['created', 'updated']:
@@ -264,10 +265,19 @@ class IssueManager:
             else:
                 return fields.get(field_name, 'Unknown')
         else:
+            # Handle Status object directly
+            if hasattr(obj, 'name'):
+                return obj.name
+            
+            if not hasattr(obj, 'fields'):
+                return str(obj)
+            
             if field_name in ['assignee', 'reporter']:
-                return getattr(getattr(obj.fields, field_name, None), 'displayName', 'Unassigned')
+                user = getattr(obj.fields, field_name, None)
+                return user.displayName if user else 'Unassigned'
             elif field_name in ['issuetype', 'priority', 'status']:
-                return getattr(getattr(obj.fields, field_name, None), 'name', 'Unknown')
+                field = getattr(obj.fields, field_name, None)
+                return field.name if field else 'Unknown'
             elif field_name in ['created', 'updated']:
                 return getattr(obj.fields, field_name, 'Unknown date')
             else:

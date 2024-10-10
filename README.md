@@ -48,8 +48,7 @@ python main.py
 
 When no initial ticket or search string is provided, the interactive shell will start.
 
-Type `/h` for help and to see available commands.
-
+```
                              Available Commands
 ┏━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
 ┃ Command  ┃ Description                                                   ┃
@@ -82,6 +81,7 @@ Type `/h` for help and to see available commands.
 No initial ticket or search string provided. Starting interactive shell.
 Type '/help' for help.
 Jira>
+```
 
 ## Configuration
 

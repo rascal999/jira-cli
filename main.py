@@ -63,7 +63,13 @@ class JiraCLI(cmd.Cmd):
     def save_history(self):
         readline.write_history_file(self.history_file)
 
-    def update_prompt(self):
+    def update_prompt(self, issue=None):
+        if issue:
+            if isinstance(issue, dict):
+                self.current_ticket = issue['key']
+            else:
+                self.current_ticket = issue.key
+
         if self.current_ticket:
             issue = self.issue_manager.fetch_issue(self.current_ticket)
             if issue:

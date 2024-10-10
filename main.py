@@ -124,8 +124,7 @@ class JiraCLI(cmd.Cmd):
 
     def default(self, line):
         if re.match(r'^[A-Z]+-\d+$', line):
-            from commands import view
-            view.execute(self, line)
+            self.do_view(line)
         else:
             self.console.print(f"Unknown command: {line}", style="red")
 
@@ -220,6 +219,12 @@ class JiraCLI(cmd.Cmd):
     def get_issue_summary(self, ticket_key):
         # Implement this to fetch and return the issue summary
         pass
+
+    def onecmd(self, line):
+        if re.match(r'^[A-Z]+-\d+$', line):
+            self.default(line)
+            return False  # Prevent cmd.Cmd from trying to find a do_* method
+        return super().onecmd(line)
 
 def main():
     load_dotenv()  # This line should be at the beginning of the main function

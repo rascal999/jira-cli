@@ -67,6 +67,13 @@ class IssueManager:
         raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
 
     def display_issue(self, issue):
+        # If issue is a string (issue key), fetch the issue
+        if isinstance(issue, str):
+            issue = self.fetch_issue(issue)
+            if not issue:
+                self.console.print(f"Issue {issue} not found.", style="red")
+                return
+
         # Determine the data source
         if isinstance(issue, dict):
             cursor = "📁 "  # Cache indicator
@@ -96,7 +103,6 @@ class IssueManager:
         display_parent_ticket(issue, get_field, self.console)
         display_child_tasks(issue, get_field, self.console, cursor, data_source)
         display_linked_issues(issue, get_field, self.console)
-        display_child_tasks(issue, get_field, self.console, cursor, data_source)  # Changed from display_subtasks to display_child_tasks
         display_comments(issue, get_field, self.console, cursor, self.jira, self.format_comment_body, self.get_color_for_user)
 
     def display_comments(self, issue_key):
@@ -245,23 +251,26 @@ class IssueManager:
         return self.get_color_for_user(author)
 
     def get_nested_value(self, obj, field_name):
-        if isinstance(obj, dict):
+        if isinstance(obj, str):
+            return obj  # Return the string as is
+        elif isinstance(obj, dict):
+            fields = obj.get('fields', {})
             if field_name in ['assignee', 'reporter']:
-                return obj.get(field_name, {}).get('displayName', 'Unassigned')
+                return fields.get(field_name, {}).get('displayName', 'Unassigned')
             elif field_name in ['issuetype', 'priority', 'status']:
-                return obj.get(field_name, {}).get('name', 'Unknown')
+                return fields.get(field_name, {}).get('name', 'Unknown')
             elif field_name in ['created', 'updated']:
-                return obj.get(field_name, 'Unknown date')
+                return fields.get(field_name, 'Unknown date')
             else:
-                return obj.get(field_name, 'Unknown')
+                return fields.get(field_name, 'Unknown')
         else:
             if field_name in ['assignee', 'reporter']:
-                return getattr(getattr(obj, field_name, None), 'displayName', 'Unassigned')
+                return getattr(getattr(obj.fields, field_name, None), 'displayName', 'Unassigned')
             elif field_name in ['issuetype', 'priority', 'status']:
-                return getattr(getattr(obj, field_name, None), 'name', 'Unknown')
+                return getattr(getattr(obj.fields, field_name, None), 'name', 'Unknown')
             elif field_name in ['created', 'updated']:
-                return getattr(obj, field_name, 'Unknown date')
+                return getattr(obj.fields, field_name, 'Unknown date')
             else:
-                return getattr(obj, field_name, 'Unknown')
+                return getattr(obj.fields, field_name, 'Unknown')
 
     # ... other methods ...

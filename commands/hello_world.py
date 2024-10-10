@@ -6,7 +6,7 @@ def hello_world():
     """Print 'Hello World!' to the console."""
     console.print("Hello World!", style="bold green")
 
-def execute(arg=None):
+def execute(cli, arg=None):
     """Execute the hello_world command."""
     hello_world()
 

@@ -1,47 +1,103 @@
-# jira-cli
-Jira from the CLI
+# Jira CLI
+
+A command-line interface tool for interacting with Jira, featuring AI integration and enhanced productivity features.
+
+## Features
+
+- Interactive command-line interface for Jira
+- Search and display Jira issues
+- Create, update, and delete issues
+- Add comments to issues
+- View and manage epics
+- AI-powered assistance for Jira tasks
+- Clipboard integration for quick access to issue URLs
+- Customizable issue display and formatting
+
+## Installation
+
+1. Clone this repository:
+   ```
+   git clone https://github.com/yourusername/jira-cli.git
+   cd jira-cli
+   ```
+
+2. Create a virtual environment (optional but recommended):
+   ```
+   python -m venv venv
+   source venv/bin/activate  # On Windows, use `venv\Scripts\activate`
+   ```
+
+3. Install the required packages:
+   ```
+   pip install -r requirements.txt
+   ```
+
+4. Set up your environment variables:
+   ```
+   cp .env-example .env
+   ```
+   Edit the `.env` file with your Jira and OpenAI API credentials.
+
+## Usage
+
+Run the CLI:
 
 ```
-❯ ./jira_cli.py
+python main.py
+```
 
-Available Commands:
+When no initial ticket or search string is provided, the interactive shell will start.
 
-/h          - Show this help message.
-/q          - Quit the program.
-/c          - Add a comment to the last ticket. Usage: /c Your comment here.
-/s          - Enter JQL mode to execute a JQL query.
-/d TICKET   - Delete a ticket. Usage: /d TICKET_ID
-/r          - Display top 10 recently updated tickets reported by you.
-/t [TICKET] - Display issue tree starting from current or specified ticket.
-/n          - Create a new ticket under the current ticket (epic or task), or create a new epic if no ticket is
-focused.
-/l TICKET   - Link current ticket to specified ticket as 'Relates to'.
-/e          - List all epics reported by you.
-/x          - Clear the current focused ticket.
-/u          - Update the description of the currently focused ticket.
-/p          - Change focus to parent ticket and display its details.
-/i          - Ask a question to ChatGPT. Usage: /i Your question here.
-/a SUMMARY  - Rename the summary of the currently focused ticket. Usage: /a New summary here.
+Type `/h` for help and to see available commands.
 
-Type a ticket ID or search string to display ticket information or search results.
-
-When a ticket is focused, press [Tab] to display possible statuses above the prompt. Type the status name and
-press [Enter] to update the ticket to the selected status.
-
+                             Available Commands
+┏━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ Command  ┃ Description                                                   ┃
+┡━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
+│ /epics   │ List all epics reported by you.                               │
+│ /grab    │ Copy URL of current or specified issue to clipboard.          │
+│ /link    │ Link current ticket to specified ticket or unlink if already  │
+│          │ linked. Usage: /link TICKET_ID                                │
+│ /update  │ Update the description of the current ticket.                 │
+│ /help    │ Show this help message.                                       │
+│ /quit    │ Quit the program.                                             │
+│ /recent  │ Display recently updated issues reported by you.              │
+│ /clear   │ Clear the current focused ticket.                             │
+│ /search  │ Search for issues using JQL.                                  │
+│ /hello   │ Print 'Hello World!' to the console                           │
+│ /parent  │ Change focus to parent ticket and display its details.        │
+│ /delete  │ Delete a ticket. Usage: /delete [TICKET_ID]                   │
+│ /open    │ Open the current or specified ticket in the default web       │
+│          │ browser.                                                      │
+│ /comment │ Add a comment to the current ticket. Usage: /comment Your     │
+│          │ comment here.                                                 │
+│ /rename  │ Rename the summary of the currently focused ticket. Usage:    │
+│          │ /rename New summary here.                                     │
+│ /ai      │ Enter AI chat mode. Usage: /ai                                │
+│ /assign  │ Assign the current ticket or a specified ticket to yourself.  │
+│ /new     │ Create a new ticket. If a ticket ID is provided, create a     │
+│          │ subtask. Usage: /new [PARENT_TICKET_ID]                       │
+│ /tree    │ Display issue tree starting from current or specified ticket. │
+└──────────┴───────────────────────────────────────────────────────────────┘
 No initial ticket or search string provided. Starting interactive shell.
+Type '/help' for help.
+Jira>
 
-Type '/h' for help.
->
-```
+## Configuration
 
-## Install
+You can customize the CLI behavior by modifying the `.env` file. Available options include:
 
-```
-cp .env-example .env
-```
+- `JIRA_URL`: Your Jira instance URL
+- `JIRA_USERNAME`: Your Jira username
+- `JIRA_API_TOKEN`: Your Jira API token
+- `OPENAI_API_KEY`: Your OpenAI API key
+- `OPENAI_MODEL`: The OpenAI model to use (default: gpt-3.5-turbo)
+- `EDITOR`: Your preferred text editor for editing issue descriptions
 
-Update .env
+## Contributing
 
-```
-pip install prompt_toolkit python-dotenv jira rich openai
-```
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+## License
+
+This project is licensed under the GNU General Public License v3.0 - see the [LICENSE](LICENSE) file for details.

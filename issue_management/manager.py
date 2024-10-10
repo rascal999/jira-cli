@@ -14,6 +14,15 @@ import os
 from rich.text import Text
 from jira import JIRAError  # Add this import
 import io
+from rich.panel import Panel
+from rich.text import Text
+from rich.console import Console
+
+# Import the display functions
+from .display import (
+    display_issue_header, display_issue_fields, display_issue_description,
+    display_parent_ticket, display_child_tasks, display_linked_issues,
+)
 
 class IssueManager:
     def __init__(self, jira_client):
@@ -58,7 +67,37 @@ class IssueManager:
         raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
 
     def display_issue(self, issue):
-        display_issue(self, issue)
+        # Determine the data source
+        if isinstance(issue, dict):
+            cursor = "📁 "  # Cache indicator
+            get_field = lambda field, default=None: issue.get('fields', {}).get(field, default)
+            child_tasks = issue.get('child_tasks', [])
+            data_source = "cache"
+            issuetype = get_field('issuetype', {}).get('name', '').lower()
+            issue_key = issue.get('key')
+        else:
+            cursor = "🌐 "  # API indicator
+            get_field = lambda field, default=None: getattr(issue.fields, field, default)
+            issuetype = getattr(get_field('issuetype'), 'name', '').lower()
+            child_tasks = self.get_epic_children(issue.key) if issuetype == 'epic' else []
+            data_source = "API"
+            issue_key = issue.key
+
+        # Display issue details
+        self.console.print(f"\n{cursor}Issue Details: {issue_key}", style="bold cyan")
+        
+        issue_text = display_issue_header(issue, get_field)
+        issue_text.append(display_issue_fields(issue, get_field, self.get_nested_value))
+        issue_text.append(display_issue_description(issue, get_field))
+
+        panel = Panel(issue_text, title=f"Issue Details: {issue_key}", expand=False, border_style="cyan")
+        self.console.print(panel)
+
+        display_parent_ticket(issue, get_field, self.console)
+        display_child_tasks(issue, get_field, self.console, cursor, data_source)
+        display_linked_issues(issue, get_field, self.console)
+        display_child_tasks(issue, get_field, self.console, cursor, data_source)  # Changed from display_subtasks to display_child_tasks
+        display_comments(issue, get_field, self.console, cursor, self.jira, self.format_comment_body, self.get_color_for_user)
 
     def display_comments(self, issue_key):
         display_comments(self, issue_key)
@@ -204,5 +243,25 @@ class IssueManager:
 
     def get_color_for_author(self, author):
         return self.get_color_for_user(author)
+
+    def get_nested_value(self, obj, field_name):
+        if isinstance(obj, dict):
+            if field_name in ['assignee', 'reporter']:
+                return obj.get(field_name, {}).get('displayName', 'Unassigned')
+            elif field_name in ['issuetype', 'priority', 'status']:
+                return obj.get(field_name, {}).get('name', 'Unknown')
+            elif field_name in ['created', 'updated']:
+                return obj.get(field_name, 'Unknown date')
+            else:
+                return obj.get(field_name, 'Unknown')
+        else:
+            if field_name in ['assignee', 'reporter']:
+                return getattr(getattr(obj, field_name, None), 'displayName', 'Unassigned')
+            elif field_name in ['issuetype', 'priority', 'status']:
+                return getattr(getattr(obj, field_name, None), 'name', 'Unknown')
+            elif field_name in ['created', 'updated']:
+                return getattr(obj, field_name, 'Unknown date')
+            else:
+                return getattr(obj, field_name, 'Unknown')
 
     # ... other methods ...

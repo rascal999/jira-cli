@@ -223,6 +223,9 @@ class JiraCLI(cmd.Cmd):
 
 def main():
     load_dotenv()  # This line should be at the beginning of the main function
+    if os.getenv('DEBUG', '0') == '1':
+        print("Debug mode enabled. Logging Jira requests and responses.")
+    
     parser = argparse.ArgumentParser(description="Jira CLI Tool")
     parser.add_argument("ticket", nargs="?", help="Jira ticket key (e.g., EXAMPLE-123)")
     args = parser.parse_args()

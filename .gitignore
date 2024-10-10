@@ -7,3 +7,4 @@ trivy*
 jira_cli.txt
 __pycache__
 ticket_templates/
+*debug.log

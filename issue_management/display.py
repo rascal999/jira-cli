@@ -77,20 +77,9 @@ def display_issue(self, issue):
             parent_summary = getattr(parent.fields, 'summary', 'No summary available')
         self.console.print(f"{parent_key}: {parent_summary}", style="white")
 
-    # Display child tasks
-    if issuetype == 'epic':
-        if child_tasks:
-            self.console.print(f"\n{cursor}Child Tasks (from {data_source}):", style="blue bold")
-            for child in child_tasks:
-                if isinstance(child, dict):
-                    # Child task from cache
-                    self.console.print(f"{child['key']}: {child['fields']['summary']}", style="white")
-                else:
-                    # Live Jira child task object
-                    self.console.print(f"{child.key}: {child.fields.summary}", style="white")
-        else:
-            self.console.print(f"\n{cursor}No child tasks found for this epic.", style="yellow")
-    else:
+    # Display child tasks (if any)
+    child_tasks = get_field('child_tasks') or []
+    if child_tasks:
         self.console.print(f"\n{cursor}Child Tasks (from {data_source}):", style="blue bold")
         for child in child_tasks:
             if isinstance(child, dict):
@@ -99,8 +88,6 @@ def display_issue(self, issue):
             else:
                 # Live Jira child task object
                 self.console.print(f"{child.key}: {child.fields.summary}", style="white")
-        else:
-            self.console.print(f"\n{cursor}No child tasks found.", style="yellow")
 
     # Display linked issues
     links = get_field('issuelinks') or []
@@ -143,7 +130,7 @@ def display_issue(self, issue):
     else:
         self.console.print("\nNo linked issues found.", style="yellow")
 
-    # Display sub-tasks
+    # Display sub-tasks (if any)
     subtasks = get_field('subtasks') or []
     if subtasks:
         self.console.print(f"\n{cursor}Sub-tasks (from {data_source}):", style="blue bold")
@@ -154,8 +141,6 @@ def display_issue(self, issue):
             else:
                 # Live Jira subtask object
                 self.console.print(f"{subtask.key}: {subtask.fields.summary}", style="white")
-    else:
-        self.console.print(f"\n{cursor}No sub-tasks found.", style="yellow")
 
     # Display comments
     try:
@@ -164,8 +149,8 @@ def display_issue(self, issue):
             comments = get_field('comment', {}).get('comments', [])
         else:
             # Issue is a live Jira object
-            # Fetch comments in bulk using the Jira API
-            comments = self.jira.comments(issue.key, expand='renderedBody', maxResults=1000)
+            # Fetch comments without using maxResults
+            comments = self.jira.comments(issue.key)
 
         if comments:
             self.console.print(f"\n{cursor}Comments:", style="blue bold")

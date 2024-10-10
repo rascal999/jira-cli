@@ -15,6 +15,7 @@ import os
 from commands import clear, grab, delete, help, open, quit, comment, search, recent, tree, new, link, epics, update, parent, ai, rename
 from dotenv import load_dotenv
 import importlib
+import re
 
 # Initialize colorama
 init(autoreset=True)
@@ -64,17 +65,34 @@ class JiraCLI(cmd.Cmd):
         readline.write_history_file(self.history_file)
 
     def update_prompt(self, issue=None):
-        if self.current_ticket:
-            if not issue:
-                issue = self.issue_manager.fetch_issue(self.current_ticket)
-            if issue:
-                project_key = self.current_ticket.split('-')[0]
-                project_color = self.issue_manager.get_project_color(project_key)
-                color_code = self.get_ansi_color_code(project_color)
+        if issue is None:
+            issue = self.current_ticket
+
+        if issue:
+            if isinstance(issue, str):  # Issue key
+                key = issue
+                issue_obj = self.issue_manager.fetch_issue(key)
+                if issue_obj:
+                    if isinstance(issue_obj, dict):  # Cached issue
+                        summary = issue_obj['fields']['summary']
+                        status = issue_obj['fields']['status']['name']
+                    else:  # Jira issue object
+                        summary = issue_obj.fields.summary
+                        status = issue_obj.fields.status.name
+                else:
+                    summary = "Unknown"
+                    status = "Unknown"
+            elif isinstance(issue, dict):  # Cached issue
+                key = issue['key']
+                summary = issue['fields']['summary']
+                status = issue['fields']['status']['name']
+            else:  # Jira issue object
+                key = issue.key
                 summary = issue.fields.summary
-                self.prompt = f"\001{color_code}\002{self.current_ticket}\001\033[0m\002 - {summary}> "
-            else:
-                self.prompt = f"{self.current_ticket}> "
+                status = issue.fields.status.name
+
+            truncated_summary = summary[:30] + '...' if len(summary) > 30 else summary
+            self.prompt = f"{key} | {truncated_summary} | {status} > "
         else:
             self.prompt = "Jira> "
 
@@ -106,24 +124,16 @@ class JiraCLI(cmd.Cmd):
         return None
 
     def default(self, line):
-        """Handle ticket ID, search string input, or commands."""
-        if line.startswith('/'):
-            cmd = line[1:]  # Remove the leading '/'
-            if hasattr(self, 'do_' + cmd):
-                return getattr(self, 'do_' + cmd)(None)
+        if re.match(r'^[A-Z]+-\d+$', line):
+            issue = self.issue_manager.fetch_issue(line)
+            if issue:
+                self.current_ticket = line  # Set to the issue key string
+                self.update_prompt()
+                self.issue_manager.display_issue(issue)
             else:
-                self.console.print(f"Unknown command: {line}", style="yellow")
-                self.console.print("Type '/h' for help.", style="yellow")
-                return
-
-        issue = self.issue_manager.fetch_issue(line)
-        if issue:
-            self.current_ticket = line
-            self.update_prompt()
-            self.issue_manager.display_issue(issue)
+                self.console.print(f"Issue {line} not found.", style="red")
         else:
-            self.console.print(f"No issue found with key {line}. Treating as search string.", style="yellow")
-            self.issue_manager.search_issues(f'text ~ "{line}"')
+            self.console.print(f"Unknown command: {line}", style="red")
 
     def completedefault(self, text, line, begidx, endidx):
         """Provide tab completion for status updates."""

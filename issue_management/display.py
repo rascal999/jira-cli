@@ -6,85 +6,208 @@ from datetime import datetime
 from rich.table import Table
 from rich.console import Console
 import hashlib
+from jira import JIRA
 
 def display_issue(self, issue):
-    try:
-        issue_text = Text()
-        issue_text.append(f"{issue.key}: ", style="cyan bold")
-        issue_text.append(f"{issue.fields.summary}\n\n", style="white bold")
+    # Determine the data source
+    if isinstance(issue, dict):
+        cursor = "📁 "  # Cache indicator
+        get_field = lambda field, default=None: issue.get('fields', {}).get(field, default)
+        child_tasks = issue.get('child_tasks', [])
+        data_source = "cache"
+        issuetype = get_field('issuetype', {}).get('name', '').lower()
+        issue_key = issue.get('key')
+    else:
+        cursor = "🌐 "  # API indicator
+        get_field = lambda field, default=None: getattr(issue.fields, field, default)
+        issuetype = getattr(get_field('issuetype'), 'name', '').lower()
+        child_tasks = self.get_epic_children(issue.key) if issuetype == 'epic' else []
+        data_source = "API"
+        issue_key = issue.key
 
-        issue_text.append("Status: ", style="blue")
-        issue_text.append(f"{getattr(issue.fields.status, 'name', 'Unknown')}\n", style=self.get_status_style(getattr(issue.fields.status, 'name', 'Unknown')))
+    # Display issue details
+    self.console.print(f"\n{cursor}Issue Details: {issue_key}", style="bold cyan")
+    
+    issue_text = Text()
+    issue_text.append(f"{issue_key}: ", style="cyan bold")
+    issue_text.append(f"{get_field('summary') or 'No summary available'}\n\n", style="white bold")
 
-        issue_text.append("Type: ", style="blue")
-        issue_text.append(f"{getattr(issue.fields.issuetype, 'name', 'Unknown')}\n", style="magenta")
+    def get_nested_value(obj, key):
+        if isinstance(obj, dict):
+            if key in ['reporter', 'assignee']:
+                return obj.get('displayName') or obj.get('name') or str(obj)
+            return obj.get('name') or obj.get(key) or str(obj)
+        elif hasattr(obj, 'raw'):
+            return get_nested_value(obj.raw, key)
+        elif hasattr(obj, key):
+            return getattr(obj, key)
+        elif hasattr(obj, 'displayName'):
+            return obj.displayName
+        return str(obj)
 
-        issue_text.append("Priority: ", style="blue")
-        issue_text.append(f"{getattr(issue.fields.priority, 'name', 'Unknown')}\n", style="yellow")
+    for field_name, field_label in [
+        ('status', 'Status'),
+        ('issuetype', 'Type'),
+        ('priority', 'Priority'),
+        ('assignee', 'Assignee'),
+        ('reporter', 'Reporter'),
+        ('created', 'Created'),
+        ('updated', 'Updated')
+    ]:
+        field_value = get_field(field_name)
+        if field_value:
+            issue_text.append(f"{field_label}: ", style="blue")
+            issue_text.append(f"{get_nested_value(field_value, field_name)}\n", style="white")
 
-        issue_text.append("Assignee: ", style="blue")
-        assignee = getattr(issue.fields, 'assignee', None)
-        assignee_name = assignee.displayName if assignee else "Unassigned"
-        issue_text.append(f"{assignee_name}\n", style="green")
+    issue_text.append("\nDescription:\n", style="blue bold")
+    issue_text.append(f"{get_field('description') or 'No description provided.'}\n", style="white")
 
-        issue_text.append("Reporter: ", style="blue")
-        reporter = getattr(issue.fields, 'reporter', None)
-        reporter_name = reporter.displayName if reporter else "Unknown"
-        issue_text.append(f"{reporter_name}\n", style="green")
+    panel = Panel(issue_text, title=f"Issue Details: {issue_key}", expand=False, border_style="cyan")
+    self.console.print(panel)
 
-        issue_text.append("Created: ", style="blue")
-        issue_text.append(f"{getattr(issue.fields, 'created', 'Unknown')}\n", style="white")
+    # Display parent ticket
+    parent = get_field('parent')
+    if parent:
+        self.console.print("\nParent Ticket:", style="blue bold")
+        if isinstance(parent, dict):
+            parent_key = parent.get('key')
+            parent_summary = parent.get('fields', {}).get('summary', 'No summary available')
+        else:
+            parent_key = getattr(parent, 'key', 'Unknown')
+            parent_summary = getattr(parent.fields, 'summary', 'No summary available')
+        self.console.print(f"{parent_key}: {parent_summary}", style="white")
 
-        issue_text.append("Updated: ", style="blue")
-        issue_text.append(f"{getattr(issue.fields, 'updated', 'Unknown')}\n\n", style="white")
+    # Display child tasks
+    if issuetype == 'epic':
+        if child_tasks:
+            self.console.print(f"\n{cursor}Child Tasks (from {data_source}):", style="blue bold")
+            for child in child_tasks:
+                if isinstance(child, dict):
+                    # Child task from cache
+                    self.console.print(f"{child['key']}: {child['fields']['summary']}", style="white")
+                else:
+                    # Live Jira child task object
+                    self.console.print(f"{child.key}: {child.fields.summary}", style="white")
+        else:
+            self.console.print(f"\n{cursor}No child tasks found for this epic.", style="yellow")
+    else:
+        self.console.print(f"\n{cursor}Child Tasks (from {data_source}):", style="blue bold")
+        for child in child_tasks:
+            if isinstance(child, dict):
+                # Child task from cache
+                self.console.print(f"{child['key']}: {child['fields']['summary']}", style="white")
+            else:
+                # Live Jira child task object
+                self.console.print(f"{child.key}: {child.fields.summary}", style="white")
+        else:
+            self.console.print(f"\n{cursor}No child tasks found.", style="yellow")
 
-        issue_text.append("Description:\n", style="blue bold")
-        issue_text.append(f"{getattr(issue.fields, 'description', 'No description provided.')}\n", style="white")
-
-        panel = Panel(issue_text, title=f"Issue Details: {issue.key}", expand=False, border_style="cyan")
-        self.console.print(panel)
-
-        # Display parent ticket
-        if hasattr(issue.fields, 'parent'):
-            parent = issue.fields.parent
-            self.console.print(f"\nParent: {parent.key} - {parent.fields.summary}", style="cyan")
-
-        # Display linked issues
-        links = getattr(issue.fields, 'issuelinks', [])
-        if links:
-            self.console.print("\nLinked Issues:", style="cyan")
-            for link in links:
+    # Display linked issues
+    links = get_field('issuelinks') or []
+    if links:
+        self.console.print("\nLinked Issues:", style="blue bold")
+        table = Table(show_header=True, header_style="bold magenta")
+        table.add_column("Relation", style="cyan", no_wrap=True)
+        table.add_column("Key", style="green")
+        table.add_column("Summary", style="white")
+        
+        for link in links:
+            if isinstance(link, dict):
+                # Handle cached issue links
+                if 'outwardIssue' in link:
+                    related_issue = link['outwardIssue']
+                    link_type = link['type']['outward']
+                elif 'inwardIssue' in link:
+                    related_issue = link['inwardIssue']
+                    link_type = link['type']['inward']
+                else:
+                    continue
+                related_key = related_issue['key']
+                related_summary = related_issue['fields']['summary']
+            else:
+                # Handle Jira issue link objects
                 if hasattr(link, 'outwardIssue'):
-                    linked_issue = link.outwardIssue
+                    related_issue = link.outwardIssue
                     link_type = link.type.outward
                 elif hasattr(link, 'inwardIssue'):
-                    linked_issue = link.inwardIssue
+                    related_issue = link.inwardIssue
                     link_type = link.type.inward
                 else:
                     continue
-                self.console.print(f"  {link_type}: {linked_issue.key} - {linked_issue.fields.summary}")
+                related_key = related_issue.key
+                related_summary = related_issue.fields.summary
 
-        # Display sub-tasks
-        subtasks = getattr(issue.fields, 'subtasks', [])
-        if subtasks:
-            self.console.print("\nSub-tasks:", style="cyan")
-            for subtask in subtasks:
-                self.console.print(f"  {subtask.key} - {subtask.fields.summary}")
+            table.add_row(link_type, related_key, related_summary)
+        
+        self.console.print(table)
+    else:
+        self.console.print("\nNo linked issues found.", style="yellow")
 
-        # Display child issues (for epics)
-        if getattr(issue.fields.issuetype, 'name', '').lower() == 'epic':
-            child_issues = self.get_epic_children(issue.key)
-            if child_issues:
-                self.console.print("\nChild Issues:", style="cyan")
-                for child in child_issues:
-                    self.console.print(f"  {child.key} - {child.fields.summary}")
+    # Display sub-tasks
+    subtasks = get_field('subtasks') or []
+    if subtasks:
+        self.console.print(f"\n{cursor}Sub-tasks (from {data_source}):", style="blue bold")
+        for subtask in subtasks:
+            if isinstance(subtask, dict):
+                # Subtask from cache
+                self.console.print(f"{subtask['key']}: {subtask['fields']['summary']}", style="white")
+            else:
+                # Live Jira subtask object
+                self.console.print(f"{subtask.key}: {subtask.fields.summary}", style="white")
+    else:
+        self.console.print(f"\n{cursor}No sub-tasks found.", style="yellow")
 
-        # Display comments
-        self.display_comments(issue.key)
-    except AttributeError as e:
-        print(f"Error displaying issue details: {e}")
-        print(f"Issue key: {issue.key}")
-        print("Some fields may be missing or inaccessible.")
+    # Display comments
+    try:
+        if isinstance(issue, dict):
+            # Issue is from cache
+            comments = get_field('comment', {}).get('comments', [])
+        else:
+            # Issue is a live Jira object
+            # Fetch comments in bulk using the Jira API
+            comments = self.jira.comments(issue.key, expand='renderedBody', maxResults=1000)
+
+        if comments:
+            self.console.print(f"\n{cursor}Comments:", style="blue bold")
+            
+            for comment in comments:
+                if isinstance(comment, dict):
+                    # Comment from cache
+                    author = comment.get('author', {}).get('displayName', 'Unknown')
+                    created = comment.get('created', 'Unknown date')
+                    body = comment.get('body', 'No content')
+                else:
+                    # Live Jira comment object
+                    author = comment.author.displayName if comment.author else 'Unknown'
+                    created = comment.created
+                    body = comment.renderedBody if hasattr(comment, 'renderedBody') else comment.body
+
+                # Resolve user mentions in the comment body
+                body = self.format_comment_body(body)
+
+                author_color = self.get_color_for_user(author)
+                
+                comment_text = Text()
+                comment_text.append(f"{author}", style=f"bold {author_color}")
+                comment_text.append(f" - {created}\n\n", style="italic")
+                comment_text.append(body)
+
+                comment_panel = Panel(
+                    comment_text,
+                    border_style=author_color,
+                    expand=False
+                )
+                self.console.print(comment_panel)
+        else:
+            self.console.print(f"\n{cursor}No comments found.", style="yellow")
+    except Exception as e:
+        self.console.print(f"\n{cursor}Error fetching comments: {str(e)}", style="red")
+
+    except Exception as e:
+        import traceback
+        self.console.print(f"Error displaying issue details for {issue_key}: {str(e)}", style="red")
+        self.console.print("Error details:", style="red")
+        self.console.print(traceback.format_exc(), style="red")
 
 def display_comments(self, issue_key):
     try:

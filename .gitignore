@@ -1,4 +1,5 @@
 .env
+.jira_cache/
 .venv/
 trash/
 jql_queries.txt

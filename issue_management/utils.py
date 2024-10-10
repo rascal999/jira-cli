@@ -44,7 +44,18 @@ def fetch_issue(self, issue_key):
         return None
 
     try:
-        return self.jira.issue(issue_key)
+        # Check if we have a valid cached version
+        cached_issue = self.cache_manager.get_issue(issue_key)
+        if cached_issue:
+            # Fetch only the 'updated' field to check if the issue has changed
+            updated_issue = self.jira.issue(issue_key, fields='updated')
+            if self.cache_manager.is_cache_valid(issue_key, updated_issue.fields.updated):
+                return cached_issue  # Return the cached dictionary
+
+        # If no valid cache, fetch the full issue
+        issue = self.jira.issue(issue_key)
+        self.cache_manager.save_issue(issue, self.get_epic_children)
+        return issue  # Return the Jira issue object
     except JIRAError as e:
         if e.status_code == 404:
             return None

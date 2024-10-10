@@ -1,6 +1,7 @@
 import re
 import hashlib  # Add this import
 from rich.console import Console
+from .cache_manager import CacheManager
 from .display import display_issue, display_comments, display_issues_table
 from .search import search_issues, get_recent_issues
 from .update import update_issue_description, update_issue_summary, link_issues, get_parent_issue
@@ -34,6 +35,7 @@ class IssueManager:
             "OPEN": "green",
         }
         self.commands = self._load_commands()
+        self.cache_manager = CacheManager()
 
     def _load_commands(self):
         commands = {}
@@ -90,10 +92,29 @@ class IssueManager:
         return get_status_style(status)
 
     def get_available_statuses(self, issue_key):
-        return get_available_statuses(self, issue_key)
+        try:
+            transitions = self.jira.transitions(issue_key)
+            return [t['name'] for t in transitions]
+        except JIRAError as e:
+            self.console.print(f"Error fetching available statuses for {issue_key}: {str(e)}", style="red")
+            return []
 
     def fetch_issue(self, issue_key):
-        return fetch_issue(self, issue_key)
+        cached_issue = self.cache_manager.get_issue(issue_key)
+        if cached_issue:
+            return cached_issue
+
+        try:
+            issue = self.jira.issue(issue_key, fields='summary,status,issuetype,priority,assignee,reporter,created,updated,description,comment')
+            # Fetch all comments
+            comments = self.jira.comments(issue)
+            # Add comments to the issue object
+            setattr(issue.fields, 'comment', comments)
+            self.cache_manager.save_issue(issue)
+            return issue
+        except JIRAError as e:
+            self.console.print(f"Error fetching issue {issue_key}: {str(e)}", style="red")
+            return None
 
     def get_project_color(self, project_key):
         if project_key not in self.project_colors:
@@ -180,5 +201,8 @@ class IssueManager:
                 raise ValueError(f"Unable to save transcript to ticket {issue_key}.")
         except Exception as e:
             raise ValueError(f"Unexpected error: Unable to save transcript to ticket {issue_key}.")
+
+    def get_color_for_author(self, author):
+        return self.get_color_for_user(author)
 
     # ... other methods ...

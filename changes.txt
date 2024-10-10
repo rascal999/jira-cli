@@ -1,5 +1,6 @@
 * Enhancements
 ** requirements.txt
+** /view (enhancements/view-ticket-module)
 
 * Bug fixes
 ** EMPTY?

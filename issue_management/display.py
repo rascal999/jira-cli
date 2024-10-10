@@ -29,14 +29,11 @@ def display_issue_fields(issue, get_field, get_nested_value):
 
     for display_name, field_name in fields_to_display:
         field_value = get_field(field_name)
-        print(f"Field: {field_name}, Raw value: {field_value}")
         try:
             value = get_nested_value(field_value, field_name)
-            print(f"Nested value: {value}")
             issue_text.append(f"{display_name}: {value}\n", style="white")
         except Exception as e:
             issue_text.append(f"{display_name}: Error retrieving value\n", style="red")
-            print(f"Error processing {field_name}: {str(e)}")
 
     return issue_text
 

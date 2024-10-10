@@ -133,3 +133,9 @@ class CacheManager:
             ]
 
         return resolved_fields
+
+    def get_comments(self, issue_key):
+        cached_issue = self.get_issue(issue_key)
+        if cached_issue and 'fields' in cached_issue and 'comment' in cached_issue['fields']:
+            return cached_issue['fields']['comment']['comments']
+        return []

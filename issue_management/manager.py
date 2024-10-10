@@ -105,10 +105,6 @@ class IssueManager:
         display_parent_ticket(issue, get_field, self.console)
         display_child_tasks(issue, get_field, self.console, cursor, data_source)
         display_linked_issues(issue, get_field, self.console)
-        display_comments(issue, get_field, self.console, cursor, self.jira, self.format_comment_body, self.get_color_for_user)
-
-    def display_comments(self, issue_key):
-        display_comments(self, issue_key)
 
     def display_issues_table(self, issues, title):
         display_issues_table(self, issues, title)
@@ -272,15 +268,9 @@ class IssueManager:
         return self.get_color_for_user(author)
 
     def get_nested_value(self, obj, field_name):
-        print(f"get_nested_value called with field_name: {field_name}")
-        print(f"obj type: {type(obj)}")
-        
         if isinstance(obj, str):
-            print(f"Returning string value: {obj}")
             return obj  # Return the string as is
         elif isinstance(obj, dict):
-            print("Object is a dictionary")
-            
             if field_name in ['assignee', 'reporter']:
                 result = obj.get('displayName', 'Unassigned') if obj else 'Unassigned'
             elif field_name in ['issuetype', 'priority', 'status']:
@@ -290,17 +280,13 @@ class IssueManager:
             else:
                 result = obj.get(field_name, 'Unknown')
             
-            print(f"Returning result for dict: {result}")
             return result
         else:
-            print("Object is neither string nor dict")
             # Handle API response objects
             if hasattr(obj, 'name'):
-                print(f"Returning name attribute: {obj.name}")
                 return obj.name
             
             if not hasattr(obj, 'fields'):
-                print(f"Returning string representation: {str(obj)}")
                 return str(obj)
             
             if field_name in ['assignee', 'reporter']:

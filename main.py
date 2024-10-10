@@ -212,6 +212,15 @@ class JiraCLI(cmd.Cmd):
         """Clear the console screen."""
         os.system('cls' if os.name == 'nt' else 'clear')
 
+    def set_current_ticket(self, ticket_key):
+        self.current_ticket = ticket_key
+        self.issue_manager.current_ticket = ticket_key  # If you want to keep this in sync
+        self.prompt = f"{ticket_key} | {self.get_issue_summary(ticket_key)} > "
+
+    def get_issue_summary(self, ticket_key):
+        # Implement this to fetch and return the issue summary
+        pass
+
 def main():
     load_dotenv()  # This line should be at the beginning of the main function
     parser = argparse.ArgumentParser(description="Jira CLI Tool")

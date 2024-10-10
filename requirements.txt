@@ -1,0 +1,8 @@
+jira
+python-dotenv
+rich
+openai==0.27.8
+colorama
+tabulate
+prompt_toolkit
+pyperclip

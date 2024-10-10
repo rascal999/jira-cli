@@ -251,36 +251,49 @@ class IssueManager:
         return self.get_color_for_user(author)
 
     def get_nested_value(self, obj, field_name):
+        print(f"get_nested_value called with field_name: {field_name}")
+        print(f"obj type: {type(obj)}")
+        
         if isinstance(obj, str):
+            print(f"Returning string value: {obj}")
             return obj  # Return the string as is
         elif isinstance(obj, dict):
-            fields = obj.get('fields', {})
+            print("Object is a dictionary")
+            
             if field_name in ['assignee', 'reporter']:
-                user = fields.get(field_name, {})
-                return user.get('displayName', 'Unassigned') if user else 'Unassigned'
+                result = obj.get('displayName', 'Unassigned') if obj else 'Unassigned'
             elif field_name in ['issuetype', 'priority', 'status']:
-                return fields.get(field_name, {}).get('name', 'Unknown')
+                result = obj.get('name', 'Unknown')
             elif field_name in ['created', 'updated']:
-                return fields.get(field_name, 'Unknown date')
+                result = obj
             else:
-                return fields.get(field_name, 'Unknown')
+                result = obj.get(field_name, 'Unknown')
+            
+            print(f"Returning result for dict: {result}")
+            return result
         else:
-            # Handle Status object directly
+            print("Object is neither string nor dict")
+            # Handle API response objects
             if hasattr(obj, 'name'):
+                print(f"Returning name attribute: {obj.name}")
                 return obj.name
             
             if not hasattr(obj, 'fields'):
+                print(f"Returning string representation: {str(obj)}")
                 return str(obj)
             
             if field_name in ['assignee', 'reporter']:
-                user = getattr(obj.fields, field_name, None)
-                return user.displayName if user else 'Unassigned'
+                user = getattr(obj, field_name, None)
+                result = user.displayName if user else 'Unassigned'
             elif field_name in ['issuetype', 'priority', 'status']:
-                field = getattr(obj.fields, field_name, None)
-                return field.name if field else 'Unknown'
+                field = getattr(obj, field_name, None)
+                result = field.name if field else 'Unknown'
             elif field_name in ['created', 'updated']:
-                return getattr(obj.fields, field_name, 'Unknown date')
+                result = getattr(obj, field_name, 'Unknown date')
             else:
-                return getattr(obj.fields, field_name, 'Unknown')
+                result = getattr(obj, field_name, 'Unknown')
+            
+            print(f"Returning result for object: {result}")
+            return result
 
     # ... other methods ...

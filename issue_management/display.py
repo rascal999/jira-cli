@@ -29,8 +29,10 @@ def display_issue_fields(issue, get_field, get_nested_value):
 
     for display_name, field_name in fields_to_display:
         field_value = get_field(field_name)
+        print(f"Field: {field_name}, Raw value: {field_value}")
         try:
             value = get_nested_value(field_value, field_name)
+            print(f"Nested value: {value}")
             issue_text.append(f"{display_name}: {value}\n", style="white")
         except Exception as e:
             issue_text.append(f"{display_name}: Error retrieving value\n", style="red")
@@ -160,26 +162,20 @@ def display_issue(self, issue):
     if isinstance(issue, dict):
         cursor = "📁 "  # Cache indicator
         get_field = lambda field, default=None: issue.get('fields', {}).get(field, default)
-        child_tasks = issue.get('child_tasks', [])
         data_source = "cache"
-        issuetype = get_field('issuetype', {}).get('name', '').lower()
-        issue_key = issue.get('key')
     else:
         cursor = "🌐 "  # API indicator
         get_field = lambda field, default=None: getattr(issue.fields, field, default)
-        issuetype = getattr(get_field('issuetype'), 'name', '').lower()
-        child_tasks = self.get_epic_children(issue.key) if issuetype == 'epic' else []
         data_source = "API"
-        issue_key = issue.key
 
     # Display issue details
-    self.console.print(f"\n{cursor}Issue Details: {issue_key}", style="bold cyan")
+    self.console.print(f"\n{cursor}Issue Details: {issue.key}", style="bold cyan")
     
     issue_text = display_issue_header(issue, get_field)
     issue_text.append(display_issue_fields(issue, get_field, self.get_nested_value))
     issue_text.append(display_issue_description(issue, get_field))
 
-    panel = Panel(issue_text, title=f"Issue Details: {issue_key}", expand=False, border_style="cyan")
+    panel = Panel(issue_text, title=f"Issue Details: {issue.key}", expand=False, border_style="cyan")
     self.console.print(panel)
 
     display_parent_ticket(issue, get_field, self.console)

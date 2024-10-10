@@ -12,7 +12,6 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.text import Text
 import os
-from commands import clear, grab, delete, help, open, quit, comment, search, recent, tree, new, link, epics, update, parent, ai, rename
 from dotenv import load_dotenv
 import importlib
 import re
@@ -125,13 +124,8 @@ class JiraCLI(cmd.Cmd):
 
     def default(self, line):
         if re.match(r'^[A-Z]+-\d+$', line):
-            issue = self.issue_manager.fetch_issue(line)
-            if issue:
-                self.current_ticket = line  # Set to the issue key string
-                self.update_prompt()
-                self.issue_manager.display_issue(issue)
-            else:
-                self.console.print(f"Issue {line} not found.", style="red")
+            from commands import view
+            view.execute(self, line)
         else:
             self.console.print(f"Unknown command: {line}", style="red")
 

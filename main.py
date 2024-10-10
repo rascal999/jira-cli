@@ -117,8 +117,18 @@ class JiraCLI(cmd.Cmd):
     def default(self, line):
         if re.match(r'^[A-Z]+-\d+$', line):
             self.do_view(line)
+        elif line.startswith('/'):
+            # Handle commands starting with '/'
+            parts = line[1:].split(maxsplit=1)
+            command = parts[0]
+            arg = parts[1] if len(parts) > 1 else ''
+            if hasattr(self, f'do_{command}'):
+                getattr(self, f'do_{command}')(arg)
+            else:
+                self.console.print(f"Unknown command: {command}", style="red")
         else:
-            self.console.print(f"Unknown command: {line}", style="red")
+            # Treat as a JQL search for summary
+            self.do_search(f'summary ~ "{line}"')
 
     def completedefault(self, text, line, begidx, endidx):
         """Provide tab completion for status updates."""

@@ -7,7 +7,14 @@ from urllib.parse import quote
 console = Console()
 
 def execute(cli, arg):
-    search_issues(cli.issue_manager, arg)
+    if arg.startswith('/'):
+        # If the argument starts with '/', use it as a text search
+        jql = f'text ~ "{arg[1:]}"'
+    else:
+        # Otherwise, use the input directly as JQL
+        jql = arg
+    
+    search_issues(cli.issue_manager, jql)
 
 def search_issues(issue_manager, query):
     try:
@@ -30,16 +37,16 @@ def search_issues(issue_manager, query):
         if e.status_code == 400:
             console.print("Invalid JQL query. Please check your syntax.", style="red")
             console.print("Examples of valid queries:", style="yellow")
-            console.print("  text ~ \"keyword\"", style="cyan")
+            console.print("  summary ~ \"keyword\"", style="cyan")
             console.print("  project = \"PROJECT\" AND status = \"Open\"", style="cyan")
             console.print("  assignee = currentUser() AND priority = High", style="cyan")
         else:
-            console.print(f"Error searching for issues: HTTP {e.status_code}", style="red")
+            console.print(f"Error searching for issues: HTTP {e.status_code} - {e.text}", style="red")
         return [], None
     
     except Exception as e:
-        console.print("Unexpected error searching for issues.", style="red")
+        console.print(f"Unexpected error searching for issues: {str(e)}", style="red")
         return [], None
 
 COMMAND = "search"
-HELP = "Search for issues using JQL."
+HELP = "Search for issues using JQL. Use '/text' for text search. Example: /s /keyword or /s project = PROJECT"

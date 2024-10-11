@@ -3,7 +3,7 @@
 import argparse
 import cmd
 import readline
-from issue_management import IssueManager
+from common import IssueManager
 from auth import get_jira_client
 import openai  # You'll need to install this package
 from colorama import init, Fore, Style

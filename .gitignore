@@ -1,6 +1,7 @@
 .env
 .jira_cache/
 .venv/
+changes.txt
 trash/
 jql_queries.txt
 trivy*

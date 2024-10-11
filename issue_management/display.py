@@ -64,6 +64,8 @@ def display_child_tasks(issue, get_field, console, cursor, data_source):
                 console.print(f"{child['key']}: {child['fields']['summary']}", style="white")
             else:
                 console.print(f"{child.key}: {child.fields.summary}", style="white")
+    else:
+        console.print(f"\n{cursor}No child tasks found.", style="yellow")
 
 def display_linked_issues(issue, get_field, console):
     links = get_field('issuelinks') or []

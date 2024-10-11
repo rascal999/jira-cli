@@ -76,21 +76,25 @@ class IssueManager:
                 self.console.print(f"Issue {issue} not found.", style="red")
                 return
 
-        # Determine the data source
+        # Determine the data source and set up variables
         if isinstance(issue, dict):
             cursor = "📁 "  # Cache indicator
             get_field = lambda field, default=None: issue.get('fields', {}).get(field, default)
-            child_tasks = issue.get('child_tasks', [])
-            data_source = "cache"
             issuetype = get_field('issuetype', {}).get('name', '').lower()
             issue_key = issue.get('key')
+            data_source = "cache"
         else:
             cursor = "🌐 "  # API indicator
             get_field = lambda field, default=None: getattr(issue.fields, field, default)
             issuetype = getattr(get_field('issuetype'), 'name', '').lower()
-            child_tasks = self.get_epic_children(issue.key) if issuetype == 'epic' else []
-            data_source = "API"
             issue_key = issue.key
+            data_source = "API"
+
+        # Fetch child tasks for epics
+        if issuetype == 'epic':
+            child_tasks = self.get_epic_children(issue_key)
+        else:
+            child_tasks = []
 
         # Display issue details
         self.console.print(f"\n{cursor}Issue Details: {issue_key}", style="bold cyan")
@@ -103,7 +107,7 @@ class IssueManager:
         self.console.print(panel)
 
         display_parent_ticket(issue, get_field, self.console)
-        display_child_tasks(issue, get_field, self.console, cursor, data_source)
+        display_child_tasks(issue, lambda field: child_tasks if field == 'child_tasks' else get_field(field), self.console, cursor, data_source)
         display_linked_issues(issue, get_field, self.console)
 
     def display_issues_table(self, issues, title):
@@ -243,7 +247,8 @@ class IssueManager:
     def get_epic_children(self, epic_key):
         try:
             jql = f'"Epic Link" = {epic_key}'
-            return self.jira.search_issues(jql)
+            children = self.jira.search_issues(jql)
+            return [{'key': child.key, 'fields': {'summary': child.fields.summary}} for child in children]
         except Exception as e:
             self.console.print(f"Error fetching epic children: {str(e)}", style="red")
             return []

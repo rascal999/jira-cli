@@ -90,9 +90,9 @@ class CacheManager:
             child_tasks = get_epic_children_func(issue.key)
             cache_data['child_tasks'] = [
                 {
-                    'key': child.key,
+                    'key': child['key'] if isinstance(child, dict) else child.key,
                     'fields': {
-                        'summary': child.fields.summary
+                        'summary': child['fields']['summary'] if isinstance(child, dict) else child.fields.summary
                     }
                 } for child in child_tasks
             ]

@@ -1,8 +1,6 @@
 jira
-python-dotenv
-rich
-openai==0.27.8
-colorama
-tabulate
-prompt_toolkit
+openai==0.28
 pyperclip
+python-dotenv
+pytz
+requests

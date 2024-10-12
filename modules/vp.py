@@ -2,6 +2,7 @@ from rich.console import Console
 from common.jira_client import get_jira_client
 from jira.exceptions import JIRAError
 from modules import vid
+from common.utils import clear_screen  # Add this line if vp.py uses clear_screen
 
 def run(args, current_ticket=None):
     console = Console()
@@ -36,4 +37,3 @@ def run(args, current_ticket=None):
     return None
 
 HELP_TEXT = "View the parent of the currently focused ticket"
-

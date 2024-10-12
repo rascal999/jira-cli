@@ -1,5 +1,6 @@
 from rich.console import Console
-from modules import vid, vct, vli, vic
+from modules import va, vid, vct, vli, vic
+from common.utils import clear_screen  # Add this line if vft.py uses clear_screen
 
 def run(args, current_ticket=None):
     console = Console()
@@ -9,6 +10,11 @@ def run(args, current_ticket=None):
         return
 
     console.print(f"[bold cyan]Viewing full details for ticket: {current_ticket}[/bold cyan]\n")
+
+    # Run va
+    console.print("[bold magenta]Attachments:[/bold magenta]")
+    va.run([], current_ticket)
+    console.print()
 
     # Run vct
     console.print("[bold magenta]Child Tasks:[/bold magenta]")

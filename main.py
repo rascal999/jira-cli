@@ -7,6 +7,9 @@ import readline
 import atexit
 import shlex
 import glob
+from rich.console import Console
+
+CURRENT_TICKET_FILE = os.path.join('./cache/current_ticket.txt')
 
 class InteractiveShell:
     def __init__(self):
@@ -15,7 +18,7 @@ class InteractiveShell:
         self.load_modules()
         self.history_file = os.path.expanduser('~/.interactive_shell_history')
         self.setup_history()
-        self.current_ticket = None
+        self.current_ticket = self.load_current_ticket()
 
     def load_modules(self):
         modules_dir = os.path.join(os.path.dirname(__file__), 'modules')
@@ -55,8 +58,71 @@ class InteractiveShell:
             return f"[{self.current_ticket}]"
         return ""
 
+    def save_current_ticket(self):
+        os.makedirs('./cache', exist_ok=True)
+        with open(CURRENT_TICKET_FILE, 'w') as f:
+            f.write(self.current_ticket or '')
+
+    def load_current_ticket(self):
+        if os.path.exists(CURRENT_TICKET_FILE):
+            with open(CURRENT_TICKET_FILE, 'r') as f:
+                return f.read().strip() or None
+        return None
+
+    def set_current_ticket(self, ticket):
+        self.current_ticket = ticket
+        self.save_current_ticket()
+
+    def get_commands(self):
+        return list(self.modules.keys()) + list(self.aliases.keys())
+
+    def complete(self, text, state):
+        buffer = readline.get_line_buffer()
+        line = readline.get_line_buffer().split()
+
+        # If there's no command yet, complete with available commands and aliases
+        if not line:
+            commands = self.get_commands() + list(self.aliases.keys())
+            results = [cmd + ' ' for cmd in commands if cmd.startswith(text)] + [None]
+            return results[state]
+
+        # If we have a command, check if it's 'attach'
+        cmd = line[0].strip().lower()
+        if cmd == 'attach':
+            return self.complete_file_path(text, buffer, readline.get_begidx(), readline.get_endidx())[state]
+
+        # Default to command and alias completion
+        commands = self.get_commands() + list(self.aliases.keys())
+        results = [cmd + ' ' for cmd in commands if cmd.startswith(text)] + [None]
+        return results[state]
+
+    def complete_file_path(self, text, line, begidx, endidx):
+        before_arg = line.rfind(" ", 0, begidx)
+        if before_arg == -1:
+            return []  # arg not found
+
+        fixed = line[before_arg+1:begidx]  # fixed portion of the arg
+        arg = line[before_arg+1:endidx]
+        pattern = arg + '*'
+
+        completions = []
+        for path in glob.glob(pattern):
+            if os.path.isdir(path):
+                completions.append(path + os.path.sep)
+            else:
+                completions.append(path)
+
+        return [c[len(fixed):] for c in completions]
+
     def run(self):
-        print("Welcome to the Interactive Shell!")
+        console = Console()
+        console.print("[bold cyan]Welcome to the Interactive Shell![/bold cyan]")
+        
+        if self.current_ticket:
+            console.print(f"[bold green]Current ticket: {self.current_ticket}[/bold green]")
+        else:
+            console.print("[yellow]No current ticket set.[/yellow]")
+        
         self.execute_command('help')
         
         while True:
@@ -136,50 +202,6 @@ class InteractiveShell:
                 print(f"The '{command}' module does not have a 'run' function.")
         else:
             print(f"Unknown command: '{command}'. Type 'help' for a list of available commands.")
-
-    def set_current_ticket(self, ticket):
-        self.current_ticket = ticket
-
-    def get_commands(self):
-        return list(self.modules.keys()) + list(self.aliases.keys())
-
-    def complete(self, text, state):
-        buffer = readline.get_line_buffer()
-        line = readline.get_line_buffer().split()
-
-        # If there's no command yet, complete with available commands and aliases
-        if not line:
-            commands = self.get_commands() + list(self.aliases.keys())
-            results = [cmd + ' ' for cmd in commands if cmd.startswith(text)] + [None]
-            return results[state]
-
-        # If we have a command, check if it's 'attach'
-        cmd = line[0].strip().lower()
-        if cmd == 'attach':
-            return self.complete_file_path(text, buffer, readline.get_begidx(), readline.get_endidx())[state]
-
-        # Default to command and alias completion
-        commands = self.get_commands() + list(self.aliases.keys())
-        results = [cmd + ' ' for cmd in commands if cmd.startswith(text)] + [None]
-        return results[state]
-
-    def complete_file_path(self, text, line, begidx, endidx):
-        before_arg = line.rfind(" ", 0, begidx)
-        if before_arg == -1:
-            return []  # arg not found
-
-        fixed = line[before_arg+1:begidx]  # fixed portion of the arg
-        arg = line[before_arg+1:endidx]
-        pattern = arg + '*'
-
-        completions = []
-        for path in glob.glob(pattern):
-            if os.path.isdir(path):
-                completions.append(path + os.path.sep)
-            else:
-                completions.append(path)
-
-        return [c[len(fixed):] for c in completions]
 
 shell = InteractiveShell()
 

@@ -1,3 +1,5 @@
+import os
+
 def print_header(text):
     print("=" * 40)
     print(text.center(40))
@@ -13,3 +15,5 @@ def confirm_action(prompt):
         else:
             print("Please enter 'y' or 'n'.")
 
+def clear_screen():
+    os.system('cls' if os.name == 'nt' else 'clear')

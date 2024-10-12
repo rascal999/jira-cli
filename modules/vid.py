@@ -1,6 +1,6 @@
 import sys
 from common.jira_client import get_jira_client
-from common.utils import print_header, confirm_action
+from common.utils import print_header, confirm_action, clear_screen
 from rich.console import Console
 from rich.panel import Panel
 from rich.text import Text
@@ -34,6 +34,7 @@ def run(args, current_ticket=None):
 
 def display_issue(console, jira, issue_key):
     try:
+        clear_screen()  # Clear the screen before displaying issue details
         issue = vid_cache.get_issue(issue_key)
         
         issue_details = Text()

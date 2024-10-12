@@ -139,15 +139,15 @@ class InteractiveShell:
         self.current_ticket = ticket
 
     def get_commands(self):
-        return list(self.modules.keys())
+        return list(self.modules.keys()) + list(self.aliases.keys())
 
     def complete(self, text, state):
         buffer = readline.get_line_buffer()
         line = readline.get_line_buffer().split()
 
-        # If there's no command yet, complete with available commands
+        # If there's no command yet, complete with available commands and aliases
         if not line:
-            commands = self.get_commands()
+            commands = self.get_commands() + list(self.aliases.keys())
             results = [cmd + ' ' for cmd in commands if cmd.startswith(text)] + [None]
             return results[state]
 
@@ -156,8 +156,8 @@ class InteractiveShell:
         if cmd == 'attach':
             return self.complete_file_path(text, buffer, readline.get_begidx(), readline.get_endidx())[state]
 
-        # Default to command completion
-        commands = self.get_commands()
+        # Default to command and alias completion
+        commands = self.get_commands() + list(self.aliases.keys())
         results = [cmd + ' ' for cmd in commands if cmd.startswith(text)] + [None]
         return results[state]
 

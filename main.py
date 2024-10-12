@@ -126,6 +126,8 @@ class InteractiveShell:
                             self.set_current_ticket(None)
                         elif command == 'parent' and result:
                             self.set_current_ticket(result)
+                        elif command in ['clear', 'unfocus'] and result == "CLEARED":
+                            self.set_current_ticket(None)
                     else:
                         print(f"The 'run' attribute of the '{command}' module is not callable.")
                 except Exception as e:

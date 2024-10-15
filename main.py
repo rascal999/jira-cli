@@ -244,7 +244,22 @@ class InteractiveShell:
             else:
                 print(f"The '{command}' module does not have a 'run' function.")
         else:
-            print(f"Unknown command: '{command}'. Type 'help' for a list of available commands.")
+            # If the command is unknown, perform a JQL search
+            jql_query = f'summary ~ "{command} {" ".join(args)}"'
+            jql_module = self.modules['jql']
+            if hasattr(jql_module, 'run'):
+                try:
+                    run_func = jql_module.run
+                    if callable(run_func):
+                        result = run_func([jql_query], self.current_ticket)
+                        if isinstance(result, list) and all(isinstance(item, str) for item in result):
+                            self.update_ticket_id_history(result)
+                    else:
+                        print(f"The 'run' attribute of the 'jql' module is not callable.")
+                except Exception as e:
+                    print(f"Error executing JQL search: {str(e)}")
+            else:
+                print(f"The 'jql' module does not have a 'run' function.")
 
     def update_ticket_id_history(self, ticket_ids):
         """

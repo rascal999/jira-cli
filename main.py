@@ -20,7 +20,10 @@ class InteractiveShell:
         self.history_file = os.path.expanduser('~/.interactive_shell_history')
         self.setup_history()
         self.current_ticket = self.load_current_ticket()
-        self.current_ticket_summary = None
+        if self.current_ticket:
+            self.fetch_ticket_summary(self.current_ticket)
+        else:
+            self.current_ticket_summary = None
 
     def load_modules(self):
         modules_dir = os.path.join(os.path.dirname(__file__), 'modules')
@@ -69,8 +72,20 @@ class InteractiveShell:
     def load_current_ticket(self):
         if os.path.exists(CURRENT_TICKET_FILE):
             with open(CURRENT_TICKET_FILE, 'r') as f:
-                return f.read().strip() or None
+                ticket = f.read().strip() or None
+            if ticket:
+                self.fetch_ticket_summary(ticket)
+            return ticket
         return None
+
+    def fetch_ticket_summary(self, ticket):
+        try:
+            jira = get_jira_client()
+            issue = jira.issue(ticket)
+            self.current_ticket_summary = issue.fields.summary
+        except Exception as e:
+            print(f"Error fetching ticket summary: {str(e)}")
+            self.current_ticket_summary = None
 
     def set_current_ticket(self, ticket):
         self.current_ticket = ticket

@@ -3,4 +3,5 @@ openai==0.28
 pyperclip
 python-dotenv
 pytz
+rapidfuzz
 requests

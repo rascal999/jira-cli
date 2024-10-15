@@ -4,6 +4,7 @@ debug.log
 .env
 .jira_cache/
 jira_cli.txt
+jql_filters.json
 jql_queries.txt
 __pycache__
 *.swp

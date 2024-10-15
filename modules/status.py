@@ -21,8 +21,13 @@ def run(args, current_ticket=None):
         if not args:
             # Display available transitions
             console.print(f"[bold cyan]Available status transitions for {current_ticket}:[/bold cyan]")
+            current_status = issue.fields.status.name.lower()
             for t in transitions:
-                console.print(f"- {t['name']}")
+                status_name = t['name']
+                if status_name.lower() == current_status:
+                    console.print(f"- [bold yellow]{status_name}[/bold yellow] (current)")
+                else:
+                    console.print(f"- {status_name}")
             return
 
         new_status = ' '.join(args).lower()

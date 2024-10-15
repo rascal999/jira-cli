@@ -25,7 +25,8 @@ def perform_jql_search(jql_query, fields_to_display, max_results=None):
             add_row_to_table(table, issue, fields_to_display, color_map)
 
         print_table(console, table)
-        return True
+        ticket_ids = [issue.key for issue in issues]
+        return ticket_ids
 
     except JIRAError as e:
         console.print(f"[bold red]Error performing JQL search:[/bold red] {str(e)}")

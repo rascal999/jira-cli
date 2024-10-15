@@ -16,15 +16,16 @@ def run(args=None):
             username = current_user['emailAddress']
         else:
             console.print("[bold red]Error:[/bold red] Unable to determine current user's name or email.")
-            return
+            return []
 
         jql_query = f'type = Epic AND assignee = "{username}" ORDER BY created DESC'
         fields_to_display = ['key', 'summary', 'status', 'created']
         
-        perform_jql_search(jql_query, fields_to_display)
+        return perform_jql_search(jql_query, fields_to_display)
     except Exception as e:
         console.print(f"[bold red]Error:[/bold red] {str(e)}")
         console.print("[yellow]Debug info:[/yellow]")
         console.print(f"Current user data: {current_user}")
+    return []
 
 HELP_TEXT = "Display epics assigned to the current user"

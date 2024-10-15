@@ -24,6 +24,8 @@ class InteractiveShell:
             self.fetch_ticket_summary(self.current_ticket)
         else:
             self.current_ticket_summary = None
+        self.last_displayed_tickets = []
+        self.history_limit = 30  # Increase this to 30
 
     def load_modules(self):
         modules_dir = os.path.join(os.path.dirname(__file__), 'modules')
@@ -117,9 +119,13 @@ class InteractiveShell:
         if cmd == 'attach':
             return self.complete_file_path(text, buffer, readline.get_begidx(), readline.get_endidx())[state]
 
-        # Default to command and alias completion
-        commands = self.get_commands() + list(self.aliases.keys())
-        results = [cmd + ' ' for cmd in commands if cmd.startswith(text)] + [None]
+        # Include last displayed ticket IDs in autocompletion
+        if self.last_displayed_tickets:
+            all_completions = self.get_commands() + list(self.aliases.keys()) + self.last_displayed_tickets
+        else:
+            all_completions = self.get_commands() + list(self.aliases.keys())
+
+        results = [item + ' ' for item in all_completions if item.lower().startswith(text.lower())] + [None]
         return results[state]
 
     def complete_file_path(self, text, line, begidx, endidx):
@@ -210,12 +216,15 @@ class InteractiveShell:
                 try:
                     run_func = module.run
                     if callable(run_func):
-                        # Check if the run function accepts arguments
                         if len(inspect.signature(run_func).parameters) > 1:
                             result = run_func(args, self.current_ticket)
                         else:
                             result = run_func(args)
                         
+                        # Update ticket ID history if the result is a list of ticket IDs
+                        if isinstance(result, list) and all(isinstance(item, str) for item in result):
+                            self.update_ticket_id_history(result)
+
                         if command == 'vid' and result:
                             self.set_current_ticket(result)
                         elif command == 'new' and result:
@@ -236,6 +245,12 @@ class InteractiveShell:
                 print(f"The '{command}' module does not have a 'run' function.")
         else:
             print(f"Unknown command: '{command}'. Type 'help' for a list of available commands.")
+
+    def update_ticket_id_history(self, ticket_ids):
+        """
+        Update the history of displayed ticket IDs.
+        """
+        self.last_displayed_tickets = (self.last_displayed_tickets + ticket_ids)[-self.history_limit:]
 
 shell = InteractiveShell()
 

@@ -10,21 +10,24 @@ def run(args, current_ticket=None):
 
     if not filters:
         console.print("[yellow]No saved filters found.[/yellow]")
-        return
+        return []
 
     if not args:
         show_filters_table(console, filters)
+        return []
     elif args[0].lower() in ['rm', 'del']:
         if len(args) < 2:
             console.print("[bold red]Error:[/bold red] Please specify a filter name to remove.")
         else:
             remove_filter(console, filters, ' '.join(args[1:]))
+        return []
     else:
         filter_name = ' '.join(args)
         try:
-            run_matching_filter(console, filters, filter_name)
+            return run_matching_filter(console, filters, filter_name)
         except Exception as e:
             console.print(f"[bold red]Error:[/bold red] An unexpected error occurred: {str(e)}")
+            return []
 
 def show_filters_table(console, filters):
     table = Table(title="Saved JQL Filters")
@@ -41,19 +44,17 @@ def show_filters_table(console, filters):
 def run_matching_filter(console, filters, filter_name):
     exact_match = filters.get(filter_name)
     if exact_match:
-        run_filter(console, filter_name, exact_match)
-        return
+        return run_filter(console, filter_name, exact_match)
 
     # Partial matching
     partial_matches = [name for name in filters if filter_name.lower() in name.lower()]
     if len(partial_matches) == 1:
-        run_filter(console, partial_matches[0], filters[partial_matches[0]])
-        return
+        return run_filter(console, partial_matches[0], filters[partial_matches[0]])
     elif len(partial_matches) > 1:
         console.print(f"[yellow]Multiple partial matches found for '{filter_name}':[/yellow]")
         for match in partial_matches:
             console.print(f"  - {match}")
-        return
+        return []
 
     # Fuzzy matching
     fuzzy_matches = process.extract(filter_name, filters.keys(), scorer=fuzz.WRatio, limit=3)
@@ -61,15 +62,15 @@ def run_matching_filter(console, filters, filter_name):
         best_match = fuzzy_matches[0][0]
         console.print(f"[yellow]Did you mean '{best_match}'? (y/n)[/yellow]")
         if console.input().lower() == 'y':
-            run_filter(console, best_match, filters[best_match])
-            return
+            return run_filter(console, best_match, filters[best_match])
 
     console.print(f"[bold red]Error:[/bold red] No matching filter found for '{filter_name}'.")
+    return []
 
 def run_filter(console, filter_name, jql_query):
     console.print(f"[bold cyan]Running filter:[/bold cyan] {filter_name}")
     console.print(f"[bold cyan]JQL Query:[/bold cyan] {jql_query}\n")
-    perform_jql_search(jql_query, ['key', 'summary', 'status', 'assignee'],max_results=30)
+    return perform_jql_search(jql_query, ['key', 'summary', 'status', 'assignee'], max_results=30)
 
 def remove_filter(console, filters, filter_name):
     exact_match = filters.get(filter_name)

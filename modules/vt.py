@@ -8,7 +8,7 @@ def run(args, current_ticket=None):
 
     if not args:
         console.print("[bold red]Error:[/bold red] Please provide a PROJECT ID.")
-        return
+        return []
 
     project_id = args[0].upper()
 
@@ -23,7 +23,7 @@ def run(args, current_ticket=None):
 
         if not users:
             console.print(f"[yellow]No team members found for project {project_id}.[/yellow]")
-            return
+            return []
 
         fields_to_display = ['emailAddress', 'displayName', 'active']
         table = create_jira_table(f"Team Members for {project.name} ({project_id})", fields_to_display)
@@ -42,11 +42,15 @@ def run(args, current_ticket=None):
 
         print_table(console, table)
 
+        # This module doesn't return ticket IDs, but we'll keep the consistent return type
+        return []
+
     except JIRAError as e:
         console.print(f"[bold red]Error:[/bold red] {str(e)}")
     except Exception as e:
         console.print(f"[bold red]An unexpected error occurred:[/bold red] {str(e)}")
         console.print(f"[yellow]Debug info:[/yellow] {type(e).__name__}: {str(e)}")
+    return []
 
 HELP_TEXT = "View team members for a given PROJECT ID (Usage: vt <PROJECT-ID>)"
 ALIASES = ["team"]

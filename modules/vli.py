@@ -8,7 +8,7 @@ def run(args, current_ticket=None):
 
     if not current_ticket:
         console.print("[bold red]Error:[/bold red] No current ticket is focused. Use 'vid' command to focus on a ticket first.")
-        return
+        return []
 
     try:
         jira = get_jira_client()
@@ -17,10 +17,11 @@ def run(args, current_ticket=None):
         links = issue.fields.issuelinks
         if not links:
             console.print(f"[yellow]No linked issues found for {current_ticket}[/yellow]")
-            return
+            return []
 
         table = create_jira_table(f"Linked Issues for {current_ticket}", ["Link Type", "Issue Key", "Summary", "Status"])
         color_map = {}
+        ticket_ids = []
 
         for link in links:
             if hasattr(link, "outwardIssue"):
@@ -43,13 +44,16 @@ def run(args, current_ticket=None):
             })
 
             add_row_to_table(table, issue_obj, ['linktype', 'key', 'summary', 'status'], color_map)
+            ticket_ids.append(linked_issue.key)
 
         print_table(console, table)
+        return ticket_ids
 
     except JIRAError as e:
         console.print(f"[bold red]Error:[/bold red] {str(e)}")
     except Exception as e:
         console.print(f"[bold red]An unexpected error occurred:[/bold red] {str(e)}")
+    return []
 
 HELP_TEXT = "View linked issues for the current ticket"
 ALIASES = ["links"]

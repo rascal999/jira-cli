@@ -7,13 +7,15 @@ def run(args, current_ticket=None):
 
     if not current_ticket:
         console.print("[bold red]Error:[/bold red] No current ticket is focused. Use 'vid' command to focus on a ticket first.")
-        return
+        return []
 
     console.print(f"[bold cyan]Viewing full details for ticket: {current_ticket}[/bold cyan]\n")
 
+    ticket_ids = [current_ticket]
+
     # Run vli
     console.print("[bold magenta]Linked Issues:[/bold magenta]")
-    vli.run([], current_ticket)
+    ticket_ids.extend(vli.run([], current_ticket))
     console.print()
 
     # Run va
@@ -23,12 +25,14 @@ def run(args, current_ticket=None):
 
     # Run vct
     console.print("[bold magenta]Child Tasks:[/bold magenta]")
-    vct.run([], current_ticket)
+    ticket_ids.extend(vct.run([], current_ticket))
     console.print()
 
     # Run vic
     console.print("[bold magenta]Comments:[/bold magenta]")
     vic.run([current_ticket])
+
+    return list(set(ticket_ids))  # Remove duplicates
 
 HELP_TEXT = "View full ticket details including issue info, child tasks, linked issues, and comments"
 ALIASES = ["full"]

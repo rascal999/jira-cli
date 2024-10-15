@@ -1,5 +1,6 @@
 import tempfile
 import subprocess
+import os
 from rich.console import Console
 from rich.table import Table
 from common.jira_client import get_jira_client
@@ -7,6 +8,7 @@ from jira.exceptions import JIRAError
 from modules import jql
 from rapidfuzz import process, fuzz
 from common.utils import confirm_action
+from jira import JIRA
 
 def run(args, current_ticket=None):
     console = Console()
@@ -25,15 +27,17 @@ def run(args, current_ticket=None):
             if len(args) < 2:
                 console.print("[bold red]Error:[/bold red] Please specify a filter name to remove.")
             else:
-                remove_filter(console, jira, filters, ' '.join(args[1:]))
+                filter_name = ' '.join(args[1:])  # Join all arguments after 'rm' or 'del'
+                remove_filter(console, jira, filters, filter_name)
         elif args[0].lower() == 'edit':
             if len(args) < 2:
                 console.print("[bold red]Error:[/bold red] Please specify a filter name to edit.")
             else:
-                edit_filter(console, jira, filters, ' '.join(args[1:]))
+                filter_name = ' '.join(args[1:])
+                edit_filter(console, jira, filters, filter_name)
         else:
             filter_name = ' '.join(args)
-            run_matching_filter(console, jira, filters, filter_name)
+            run_matching_filter(console, filters, filter_name)
 
     except JIRAError as e:
         console.print(f"[bold red]Error:[/bold red] {str(e)}")
@@ -52,22 +56,26 @@ def show_filters_table(console, filters):
 
     console.print(table)
 
-def run_matching_filter(console, jira, filters, filter_name):
+def run_matching_filter(console, filters, filter_name):
     matching_filter = find_matching_filter(console, filters, filter_name)
     if matching_filter:
-        run_filter(console, jira, matching_filter)
+        run_filter(console, matching_filter)
 
 def remove_filter(console, jira, filters, filter_name):
-    matching_filter = find_matching_filter(console, filters, filter_name)
-    if matching_filter:
+    best_match = process.extractOne(filter_name, [f.name for f in filters], scorer=fuzz.ratio)
+    if best_match and best_match[1] > 80:  # 80% similarity threshold
+        matching_filter = next(f for f in filters if f.name == best_match[0])
+        
         if confirm_action(f"Are you sure you want to delete the filter '{matching_filter.name}'?"):
             try:
-                jira.delete_filter(matching_filter.id)
+                matching_filter.delete()
                 console.print(f"[bold green]Successfully deleted filter: {matching_filter.name}[/bold green]")
-            except JIRAError as e:
-                console.print(f"[bold red]Error deleting filter:[/bold red] {str(e)}")
+            except AttributeError:
+                console.print("[bold red]Error:[/bold red] Unable to delete the filter. The JIRA API might have changed.")
         else:
             console.print("[yellow]Filter deletion cancelled.[/yellow]")
+    else:
+        console.print(f"[bold red]Error:[/bold red] No filter found matching '{filter_name}'.")
 
 def edit_filter(console, jira, filters, filter_name):
     matching_filter = find_matching_filter(console, filters, filter_name)
@@ -85,7 +93,7 @@ def edit_filter(console, jira, filters, filter_name):
             updated_jql = temp_file.read().strip()
 
         # Remove the temporary file
-        subprocess.call(['rm', temp_file_path])
+        os.unlink(temp_file_path)
 
         if updated_jql != matching_filter.jql:
             if confirm_action(f"Are you sure you want to update the filter '{matching_filter.name}'?"):
@@ -127,10 +135,10 @@ def find_matching_filter(console, filters, filter_name):
     console.print(f"[bold red]Error:[/bold red] No matching filter found for '{filter_name}'.")
     return None
 
-def run_filter(console, jira, filter):
+def run_filter(console, filter):
     console.print(f"[bold cyan]Running filter:[/bold cyan] {filter.name}")
     console.print(f"[cyan]JQL Query:[/cyan] {filter.jql}")
     jql.run([filter.jql])
 
-HELP_TEXT = "Search for, run, edit, or delete remote Jira filters (Usage: rfilter [filter_name] | rfilter rm/del <filter_name> | rfilter edit <filter_name>)"
-ALIASES = ["rf"]
+HELP_TEXT = "Manage and run saved filters (Usage: rf [filter_name] or rf rm <filter_name>)"
+ALIASES = ["rfilter", "rf"]

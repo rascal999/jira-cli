@@ -163,12 +163,18 @@ class InteractiveShell:
                         self.execute_command('help')
                     continue
                 
-                # Use shlex to properly split the input, respecting quoted strings
-                command_parts = shlex.split(user_input)
-                command = command_parts[0].lower()
-                args = command_parts[1:]
+                try:
+                    # Use shlex to properly split the input, respecting quoted strings
+                    command_parts = shlex.split(user_input)
+                    command = command_parts[0].lower()
+                    args = command_parts[1:]
 
-                self.execute_command(command, args)
+                    self.execute_command(command, args)
+                except ValueError as e:
+                    if str(e) == "No closing quotation":
+                        console.print("[bold red]Error:[/bold red] Your input contains an unclosed quotation. Please make sure all quotes are properly closed.")
+                    else:
+                        console.print(f"[bold red]Error:[/bold red] {str(e)}")
             except EOFError:
                 print("\nExiting...")
                 break

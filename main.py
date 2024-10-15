@@ -8,6 +8,7 @@ import atexit
 import shlex
 import glob
 from rich.console import Console
+from common.jira_client import get_jira_client
 
 CURRENT_TICKET_FILE = os.path.join('./cache/current_ticket.txt')
 
@@ -19,6 +20,7 @@ class InteractiveShell:
         self.history_file = os.path.expanduser('~/.interactive_shell_history')
         self.setup_history()
         self.current_ticket = self.load_current_ticket()
+        self.current_ticket_summary = None
 
     def load_modules(self):
         modules_dir = os.path.join(os.path.dirname(__file__), 'modules')
@@ -55,7 +57,8 @@ class InteractiveShell:
 
     def display_current_ticket(self):
         if self.current_ticket:
-            return f"[{self.current_ticket}]"
+            summary = f" - {self.current_ticket_summary}" if self.current_ticket_summary else ""
+            return f"[{self.current_ticket}{summary}]"
         return ""
 
     def save_current_ticket(self):
@@ -71,6 +74,14 @@ class InteractiveShell:
 
     def set_current_ticket(self, ticket):
         self.current_ticket = ticket
+        self.current_ticket_summary = None
+        if ticket:
+            try:
+                jira = get_jira_client()
+                issue = jira.issue(ticket)
+                self.current_ticket_summary = issue.fields.summary
+            except Exception as e:
+                print(f"Error fetching ticket summary: {str(e)}")
         self.save_current_ticket()
 
     def get_commands(self):
@@ -194,6 +205,8 @@ class InteractiveShell:
                             self.set_current_ticket(result)
                         elif command in ['clear', 'unfocus'] and result == "CLEARED":
                             self.set_current_ticket(None)
+                        elif command == 'cp' and result:
+                            self.set_current_ticket(result)
                     else:
                         print(f"The 'run' attribute of the '{command}' module is not callable.")
                 except Exception as e:

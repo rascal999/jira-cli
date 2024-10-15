@@ -11,6 +11,11 @@ def run(args, current_ticket=None):
 
     console.print(f"[bold cyan]Viewing full details for ticket: {current_ticket}[/bold cyan]\n")
 
+    # Run vli
+    console.print("[bold magenta]Linked Issues:[/bold magenta]")
+    vli.run([], current_ticket)
+    console.print()
+
     # Run va
     console.print("[bold magenta]Attachments:[/bold magenta]")
     va.run([], current_ticket)
@@ -19,11 +24,6 @@ def run(args, current_ticket=None):
     # Run vct
     console.print("[bold magenta]Child Tasks:[/bold magenta]")
     vct.run([], current_ticket)
-    console.print()
-
-    # Run vli
-    console.print("[bold magenta]Linked Issues:[/bold magenta]")
-    vli.run([], current_ticket)
     console.print()
 
     # Run vic

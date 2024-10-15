@@ -31,7 +31,9 @@ def show_filters_table(console, filters):
     table.add_column("Name", style="magenta")
     table.add_column("JQL Query", style="green")
 
-    for name, query in filters.items():
+    sorted_filters = sorted(filters.items(), key=lambda x: x[0].lower())
+
+    for name, query in sorted_filters:
         table.add_row(name, query)
 
     console.print(table)

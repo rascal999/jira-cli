@@ -13,7 +13,22 @@ def run(args, current_ticket=None):
         jira = get_jira_client()
         issue = jira.issue(current_ticket)
 
-        # Check if the issue has a parent
+        # Check if an epic ID is provided as an argument
+        if args:
+            epic_key = args[0].strip().upper()
+            epic_issue = jira.issue(epic_key)
+            
+            # Check if the provided ticket is an epic
+            if epic_issue.fields.issuetype.name.lower() == 'epic':
+                # Associate the current ticket with the epic
+                jira.add_issues_to_epic(epic_key, [current_ticket])
+                console.print(f"[bold green]Successfully associated {current_ticket} with epic {epic_key}[/bold green]")
+                return current_ticket
+            else:
+                console.print(f"[bold yellow]The provided ticket {epic_key} is not an epic.[/bold yellow]")
+                return None
+
+        # Existing functionality: Check if the issue has a parent
         if hasattr(issue.fields, 'parent'):
             parent_key = issue.fields.parent.key
             console.print(f"[bold green]Switching focus to parent ticket: {parent_key}[/bold green]")
@@ -35,4 +50,4 @@ def run(args, current_ticket=None):
 
     return None
 
-HELP_TEXT = "Switch focus to the parent ticket of the currently focused ticket"
+HELP_TEXT = "Switch focus to the parent ticket of the currently focused ticket or associate the current ticket with an epic (Usage: parent [EPIC-ID])"

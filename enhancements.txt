@@ -1,0 +1,2 @@
+* Resolve account IDs in issue description and colour
+* Update assign to allow for assign [[user]]

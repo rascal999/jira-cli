@@ -1,0 +1,1 @@
+* Double [] [] in summary results in second instance not showing

@@ -7,33 +7,45 @@ from common.utils import confirm_action
 def run(args, current_ticket=None):
     console = Console()
 
-    if args:
-        issue_key = args[0].strip().upper()
-    elif current_ticket:
-        issue_key = current_ticket
-    else:
+    if not args and not current_ticket:
         console.print("[bold red]Error:[/bold red] No ticket specified and no current ticket set.")
         return
 
+    issue_keys = [arg.strip().upper() for arg in args]
+
     try:
         jira = get_jira_client()
-        issue = jira.issue(issue_key)
+        issues = []
 
-        console.print(f"[yellow]You are about to delete the following issue:[/yellow]")
-        console.print(f"[cyan]Key:[/cyan] {issue.key}")
-        console.print(f"[cyan]Summary:[/cyan] {issue.fields.summary}")
+        for issue_key in issue_keys:
+            try:
+                issue = jira.issue(issue_key)
+                issues.append(issue)
+                console.print(f"[cyan]Key:[/cyan] {issue.key} - [cyan]Summary:[/cyan] {issue.fields.summary}")
+            except JIRAError as e:
+                console.print(f"[bold red]Error fetching issue {issue_key}:[/bold red] {str(e)}")
 
-        if confirm_action("Are you sure you want to delete this issue?"):
-            issue.delete()
-            console.print(f"[bold green]Successfully deleted issue {issue_key}[/bold green]")
-            return "DELETED"  # Return a special value to indicate deletion
+        if not issues:
+            console.print("[bold red]Error:[/bold red] No valid tickets to delete.")
+            return
+
+        if confirm_action("Are you sure you want to delete these issues?", default=False):
+            for issue in issues:
+                try:
+                    issue.delete()
+                    console.print(f"[bold green]Successfully deleted issue {issue.key}[/bold green]")
+                except JIRAError as e:
+                    console.print(f"[bold red]Error deleting issue {issue.key}:[/bold red] {str(e)}")
+
+            # Unfocus the current ticket only if it was deleted
+            if current_ticket and current_ticket in issue_keys:
+                console.print(f"[bold yellow]Unfocusing current ticket: {current_ticket}[/bold yellow]")
+                return "DELETED"
         else:
             console.print("[yellow]Deletion cancelled.[/yellow]")
 
-    except JIRAError as e:
-        console.print(f"[bold red]Error:[/bold red] {str(e)}")
     except Exception as e:
         console.print(f"[bold red]An unexpected error occurred:[/bold red] {str(e)}")
 
-HELP_TEXT = "Delete a Jira ticket (Usage: delete [TICKET-ID])"
+HELP_TEXT = "Delete one or more Jira tickets (Usage: delete [TICKET-ID]...)"
 ALIASES = ["rm"]

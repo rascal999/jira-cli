@@ -10,6 +10,9 @@ import glob
 from rich.console import Console
 from common.jira_client import get_jira_client
 from common.jql_filters import load_jql_filters
+import platform
+if platform.system() != 'Windows':
+    readline.parse_and_bind('bind ^I rl_complete')  # Ensure tab completion works on Unix systems
 
 CURRENT_TICKET_FILE = os.path.join('./cache/current_ticket.txt')
 
@@ -19,15 +22,14 @@ class InteractiveShell:
         self.aliases = {}
         self.load_modules()
         self.history_file = os.path.expanduser('~/.interactive_shell_history')
-        self.setup_history()
         self.current_ticket = self.load_current_ticket()
         if self.current_ticket:
             self.fetch_ticket_summary(self.current_ticket)
         else:
             self.current_ticket_summary = None
         self.last_displayed_tickets = []
-        self.history_limit = 30  # Increase this to 30
-        self.register_completions()
+        self.history_limit = 30
+        self.setup_history()  # Move this after loading modules
 
     def load_modules(self):
         modules_dir = os.path.join(os.path.dirname(__file__), 'modules')
@@ -44,19 +46,15 @@ class InteractiveShell:
                     print(f"Error loading module {module_name}: {e}")
 
     def setup_history(self):
-        # Enable tab completion
-        readline.set_completer(self.complete)
+        # Set up readline with proper configuration first
         readline.parse_and_bind('tab: complete')
         readline.set_completer_delims(' \t\n')
-
-        # Set the maximum number of items to store in the history
+        readline.set_completer(self.complete)
+        
+        # Set up history
         readline.set_history_length(1000)
-
-        # Load existing history if it exists
         if os.path.exists(self.history_file):
             readline.read_history_file(self.history_file)
-
-        # Register the save_history function to be called on exit
         atexit.register(self.save_history)
 
     def save_history(self):
@@ -104,31 +102,85 @@ class InteractiveShell:
         self.save_current_ticket()
 
     def get_commands(self):
-        return list(self.modules.keys()) + list(self.aliases.keys())
+        """Returns a list of all available commands including modules and aliases"""
+        # Add debug logging
+        commands = list(self.modules.keys()) + list(self.aliases.keys())
+        sorted_commands = sorted(set(commands))
+        return sorted_commands
 
     def complete(self, text, state):
-        buffer = readline.get_line_buffer()
-        line = readline.get_line_buffer().split()
+        try:
+            # Get the current input line and cursor position
+            buffer = readline.get_line_buffer()
+            
+            # Use shlex to properly handle quoted strings
+            try:
+                # Split the input, preserving quotes
+                line = shlex.split(buffer) if buffer else []
+            except ValueError:
+                # Handle incomplete quoted strings
+                line = buffer.split()
 
-        # If there's no command yet, complete with available commands and aliases
-        if not line:
-            commands = self.get_commands() + list(self.aliases.keys())
-            results = [cmd + ' ' for cmd in commands if cmd.startswith(text)] + [None]
+            # If there's no command yet or just starting to type
+            if not line or (len(line) == 1 and not buffer.endswith(' ')):
+                if not text and not buffer:
+                    # Show all commands when pressing tab on empty line
+                    commands = self.get_commands()
+                    if state < len(commands):
+                        return commands[state] + ' '
+                    return None
+                
+                # Filter commands based on partial input
+                commands = self.get_commands()
+                matches = [cmd + ' ' for cmd in commands if cmd.startswith(text.lower())]
+                if state < len(matches):
+                    return matches[state]
+                return None
+
+            # Get the command (first word)
+            cmd = line[0].strip().lower()
+
+            # If the command is an alias, get the actual command
+            if cmd in self.aliases:
+                cmd = self.aliases[cmd]
+
+            # Command-specific completions
+            if cmd == 'attach':
+                completions = self.complete_file_path(text, buffer, readline.get_begidx(), readline.get_endidx())
+                if completions and state < len(completions):
+                    return completions[state]
+            elif cmd in ['link', 'unlink', 'parent']:
+                # For commands that expect ticket IDs, suggest from history
+                if self.last_displayed_tickets:
+                    matches = [t + ' ' for t in self.last_displayed_tickets if t.lower().startswith(text.lower())]
+                    if state < len(matches):
+                        return matches[state]
+            elif cmd == 'status':
+                # Get available status transitions for current ticket
+                if self.current_ticket:
+                    try:
+                        jira = get_jira_client()
+                        issue = jira.issue(self.current_ticket)
+                        transitions = jira.transitions(issue)
+                        status_names = [t['name'].lower() for t in transitions]
+                        matches = [s + ' ' for s in status_names if s.startswith(text.lower())]
+                        if state < len(matches):
+                            return matches[state]
+                    except:
+                        pass
+
+            # Default completion: include commands, aliases, and ticket IDs
+            all_completions = (self.get_commands() + 
+                              list(self.aliases.keys()) + 
+                              self.last_displayed_tickets)
+            
+            matches = [item for item in all_completions if item.lower().startswith(text.lower())]
+            results = [m + ' ' for m in matches] + [None]
             return results[state]
 
-        # If we have a command, check if it's 'attach'
-        cmd = line[0].strip().lower()
-        if cmd == 'attach':
-            return self.complete_file_path(text, buffer, readline.get_begidx(), readline.get_endidx())[state]
-
-        # Include last displayed ticket IDs in autocompletion
-        if self.last_displayed_tickets:
-            all_completions = self.get_commands() + list(self.aliases.keys()) + self.last_displayed_tickets
-        else:
-            all_completions = self.get_commands() + list(self.aliases.keys())
-
-        results = [item + ' ' for item in all_completions if item.lower().startswith(text.lower())] + [None]
-        return results[state]
+        except Exception as e:
+            print(f"Error completing command: {str(e)}")
+            return None
 
     def complete_file_path(self, text, line, begidx, endidx):
         before_arg = line.rfind(" ", 0, begidx)
@@ -147,57 +199,6 @@ class InteractiveShell:
                 completions.append(path)
 
         return [c[len(fixed):] for c in completions]
-
-    def register_completions(self):
-        def filter_completer(text, state):
-            # Get the current input line and cursor position
-            line = readline.get_line_buffer()
-            words = line.split()
-            
-            if not words or (len(words) == 1 and not line.endswith(' ')):
-                # Just 'filter' command typed, no suggestions needed
-                return None
-                
-            # Load all filter names
-            filters = load_jql_filters()
-            filter_names = list(filters.keys())
-            
-            # If we're completing the first argument after 'filter'
-            if len(words) == 1 or (len(words) == 2 and not line.endswith(' ')):
-                if words[0].lower() == 'filter':
-                    # Special commands
-                    commands = ['save', 'rm', 'del']
-                    all_options = commands + filter_names
-                    
-                    # Filter based on what's been typed
-                    if len(words) == 2:
-                        all_options = [opt for opt in all_options if opt.lower().startswith(words[1].lower())]
-                    
-                    try:
-                        return all_options[state]
-                    except IndexError:
-                        return None
-                        
-            # If we're completing after 'filter rm' or 'filter del'
-            elif len(words) >= 2 and words[1].lower() in ['rm', 'del']:
-                # Only suggest filter names for deletion
-                matching_filters = [f for f in filter_names if f.lower().startswith(text.lower())]
-                try:
-                    return matching_filters[state]
-                except IndexError:
-                    return None
-                    
-            # Default filter name completion
-            matching_filters = [f for f in filter_names if f.lower().startswith(text.lower())]
-            try:
-                return matching_filters[state]
-            except IndexError:
-                return None
-
-        # Register the completer
-        readline.set_completer(filter_completer)
-        readline.set_completer_delims(' \t\n;')
-        readline.parse_and_bind('tab: complete')
 
     def run(self):
         console = Console()

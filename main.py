@@ -9,6 +9,7 @@ import shlex
 import glob
 from rich.console import Console
 from common.jira_client import get_jira_client
+from common.jql_filters import load_jql_filters
 
 CURRENT_TICKET_FILE = os.path.join('./cache/current_ticket.txt')
 
@@ -26,6 +27,7 @@ class InteractiveShell:
             self.current_ticket_summary = None
         self.last_displayed_tickets = []
         self.history_limit = 30  # Increase this to 30
+        self.register_completions()
 
     def load_modules(self):
         modules_dir = os.path.join(os.path.dirname(__file__), 'modules')
@@ -145,6 +147,57 @@ class InteractiveShell:
                 completions.append(path)
 
         return [c[len(fixed):] for c in completions]
+
+    def register_completions(self):
+        def filter_completer(text, state):
+            # Get the current input line and cursor position
+            line = readline.get_line_buffer()
+            words = line.split()
+            
+            if not words or (len(words) == 1 and not line.endswith(' ')):
+                # Just 'filter' command typed, no suggestions needed
+                return None
+                
+            # Load all filter names
+            filters = load_jql_filters()
+            filter_names = list(filters.keys())
+            
+            # If we're completing the first argument after 'filter'
+            if len(words) == 1 or (len(words) == 2 and not line.endswith(' ')):
+                if words[0].lower() == 'filter':
+                    # Special commands
+                    commands = ['save', 'rm', 'del']
+                    all_options = commands + filter_names
+                    
+                    # Filter based on what's been typed
+                    if len(words) == 2:
+                        all_options = [opt for opt in all_options if opt.lower().startswith(words[1].lower())]
+                    
+                    try:
+                        return all_options[state]
+                    except IndexError:
+                        return None
+                        
+            # If we're completing after 'filter rm' or 'filter del'
+            elif len(words) >= 2 and words[1].lower() in ['rm', 'del']:
+                # Only suggest filter names for deletion
+                matching_filters = [f for f in filter_names if f.lower().startswith(text.lower())]
+                try:
+                    return matching_filters[state]
+                except IndexError:
+                    return None
+                    
+            # Default filter name completion
+            matching_filters = [f for f in filter_names if f.lower().startswith(text.lower())]
+            try:
+                return matching_filters[state]
+            except IndexError:
+                return None
+
+        # Register the completer
+        readline.set_completer(filter_completer)
+        readline.set_completer_delims(' \t\n;')
+        readline.parse_and_bind('tab: complete')
 
     def run(self):
         console = Console()

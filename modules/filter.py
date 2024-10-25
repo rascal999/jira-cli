@@ -1,21 +1,35 @@
 from rich.console import Console
 from rich.table import Table
-from common.jql_filters import load_jql_filters, save_jql_filters
+from common.jql_filters import load_jql_filters, save_jql_filters, save_jql_filter
 from common.jql import perform_jql_search
 from rapidfuzz import process, fuzz
+from common.last_jql import get_last_jql, set_last_jql
 
 def run(args, current_ticket=None):
     console = Console()
     filters = load_jql_filters()
 
-    if not filters:
-        console.print("[yellow]No saved filters found.[/yellow]")
-        return []
-
     if not args:
         show_filters_table(console, filters)
         return []
-    elif args[0].lower() in ['rm', 'del']:
+    
+    command = args[0].lower()
+    if command == 'save':
+        if len(args) < 2:
+            console.print("[bold red]Error:[/bold red] Please provide a name for the filter (Usage: filter save \"<name>\")")
+            return []
+            
+        last_jql = get_last_jql()
+        if not last_jql:
+            console.print("[bold yellow]No JQL query has been run yet.[/bold yellow]")
+            return []
+            
+        filter_name = ' '.join(args[1:])
+        save_jql_filter(filter_name, last_jql)
+        console.print(f"[bold green]JQL filter saved as '{filter_name}'[/bold green]")
+        console.print(f"[dim]Query: {last_jql}[/dim]")
+        return []
+    elif command in ['rm', 'del']:
         if len(args) < 2:
             console.print("[bold red]Error:[/bold red] Please specify a filter name to remove.")
         else:
@@ -110,3 +124,4 @@ def remove_filter(console, filters, filter_name):
 
 HELP_TEXT = "Display saved JQL filters, run a specific filter, or remove a filter (Usage: filter [filter_name] | filter rm/del [filter_name])"
 ALIASES = ["filters", "f"]
+

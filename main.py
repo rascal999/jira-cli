@@ -202,7 +202,7 @@ class InteractiveShell:
 
     def run(self):
         console = Console()
-        console.print("[bold cyan]Welcome to the Interactive Shell![/bold cyan]")
+        console.print("[bold cyan]Welcome to the jira-cli Interactive Shell![/bold cyan]")
         
         if self.current_ticket:
             console.print(f"[bold green]Current ticket: {self.current_ticket}[/bold green]")

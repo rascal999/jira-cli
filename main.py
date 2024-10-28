@@ -11,8 +11,6 @@ from rich.console import Console
 from common.jira_client import get_jira_client
 from common.jql_filters import load_jql_filters
 import platform
-if platform.system() != 'Windows':
-    readline.parse_and_bind('bind ^I rl_complete')  # Ensure tab completion works on Unix systems
 
 CURRENT_TICKET_FILE = os.path.join('./cache/current_ticket.txt')
 
@@ -47,7 +45,12 @@ class InteractiveShell:
 
     def setup_history(self):
         # Set up readline with proper configuration first
-        readline.parse_and_bind('tab: complete')
+        if platform.system() != 'Windows':
+            readline.parse_and_bind('tab: complete')  # Use simple tab completion for all systems
+        else:
+            readline.parse_and_bind('tab: complete')
+        
+        # Remove any special key bindings that might interfere
         readline.set_completer_delims(' \t\n')
         readline.set_completer(self.complete)
         
